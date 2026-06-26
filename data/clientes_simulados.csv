@@ -1,0 +1,46 @@
+id_cliente,nombre,ciudad,antiguedad_meses,tipo_contrato,plan,monto_mensual,reclamos_ultimos_6_meses,pagos_atrasados,dias_sin_uso,satisfaccion,abandono,edad,cantidad_servicios
+CXM0001,Ana Rojas,Santiago,36,Anual,Fibra Plus,32990,0,0,2,5,0,34,3
+CXM0002,Luis Paredes,Valparaiso,8,Mensual,Basico,18990,2,1,14,3,1,28,1
+CXM0003,Marcela Soto,Concepcion,22,Anual,Hogar Total,45990,1,0,5,4,0,41,4
+CXM0004,Diego Salinas,La Serena,5,Mensual,Basico,17990,3,2,21,2,1,23,1
+CXM0005,Camila Fuentes,Temuco,48,Bienal,Fibra Plus,34990,0,0,1,5,0,37,3
+CXM0006,Jorge Molina,Antofagasta,15,Mensual,Movil Max,24990,1,1,9,3,0,45,2
+CXM0007,Paula Herrera,Rancagua,30,Anual,Hogar Total,48990,0,0,4,4,0,52,4
+CXM0008,Felipe Vargas,Iquique,3,Mensual,Basico,16990,4,3,28,1,1,31,1
+CXM0009,Daniela Castro,Santiago,60,Bienal,Empresas,69990,1,0,3,5,0,46,5
+CXM0010,Roberto Nunez,Valdivia,11,Mensual,Fibra Plus,31990,2,2,18,2,1,39,2
+CXM0011,Isabel Medina,Puerto Montt,27,Anual,Movil Max,26990,0,0,6,4,0,33,2
+CXM0012,Matias Campos,Concepcion,7,Mensual,Hogar Total,42990,1,0,12,3,0,26,3
+CXM0013,Carolina Vega,Santiago,18,Mensual,Fibra Plus,33990,3,1,16,2,1,44,3
+CXM0014,Andres Torres,Arica,40,Anual,Hogar Total,46990,0,0,0,5,0,58,4
+CXM0015,Valentina Leon,La Serena,13,Mensual,Basico,19990,2,0,8,4,0,29,1
+CXM0016,Pablo Contreras,Temuco,24,Anual,Fibra Plus,35990,1,1,11,3,0,35,3
+CXM0017,Sofia Aguilera,Valparaiso,4,Mensual,Movil Max,22990,3,2,24,2,1,22,2
+CXM0018,Hector Bravo,Rancagua,52,Bienal,Hogar Total,49990,0,0,2,5,0,49,4
+CXM0019,Natalia Carrasco,Antofagasta,16,Mensual,Empresas,64990,2,1,7,3,0,42,4
+CXM0020,Cristian Silva,Santiago,9,Mensual,Basico,18990,1,2,19,2,1,30,1
+CXM0021,Monica Reyes,Valdivia,33,Anual,Fibra Plus,32990,0,0,3,4,0,55,3
+CXM0022,Francisco Ortiz,Iquique,6,Mensual,Hogar Total,43990,4,1,26,2,1,38,3
+CXM0023,Elena Morales,Concepcion,45,Bienal,Empresas,72990,1,0,4,5,0,47,5
+CXM0024,Ricardo Pena,Puerto Montt,20,Anual,Movil Max,25990,2,0,13,3,0,36,2
+CXM0025,Teresa Godoy,Arica,2,Mensual,Basico,16990,2,1,15,3,1,25,1
+CXM0026,Ignacio Farias,Santiago,55,Bienal,Hogar Total,51990,0,0,1,5,0,61,4
+CXM0027,Claudia Espinoza,Temuco,12,Mensual,Fibra Plus,34990,1,0,10,4,0,32,3
+CXM0028,Miguel Saez,Valparaiso,17,Mensual,Basico,19990,3,3,22,1,1,40,1
+CXM0029,Patricia Lagos,La Serena,39,Anual,Empresas,67990,1,0,6,4,0,50,5
+CXM0030,Gonzalo Rivas,Rancagua,14,Mensual,Movil Max,23990,0,1,5,4,0,27,2
+CXM0031,Beatriz Navarro,Santiago,21,Anual,Fibra Plus,33990,2,0,9,3,0,43,3
+CXM0032,Oscar Valenzuela,Antofagasta,10,Mensual,Hogar Total,44990,3,2,20,2,1,48,3
+CXM0033,Romina Araya,Valdivia,29,Anual,Basico,20990,0,0,2,5,0,34,1
+CXM0034,Esteban Pino,Iquique,1,Mensual,Movil Max,21990,1,1,17,3,1,24,2
+CXM0035,Veronica Tapia,Concepcion,63,Bienal,Hogar Total,52990,1,0,0,5,0,57,4
+CXM0036,Alvaro Caceres,Puerto Montt,19,Mensual,Fibra Plus,32990,2,1,14,2,1,45,3
+CXM0037,Josefina Vidal,Arica,26,Anual,Empresas,70990,0,0,7,4,0,39,5
+CXM0038,Ramon Escobar,Santiago,6,Mensual,Basico,17990,0,0,4,4,0,21,1
+CXM0039,Lucia Mendez,Temuco,32,Anual,Movil Max,25990,1,0,3,4,0,53,2
+CXM0040,Manuel Ibanez,Valparaiso,23,Mensual,Hogar Total,45990,2,2,16,3,1,46,3
+CXM0041,Florencia Parra,La Serena,44,Bienal,Fibra Plus,36990,0,1,8,4,0,60,3
+CXM0042,Pedro Quintana,Rancagua,9,Mensual,Empresas,63990,3,1,25,2,1,33,4
+CXM0043,Ines Cordero,Antofagasta,35,Anual,Hogar Total,48990,1,0,5,5,0,54,4
+CXM0044,Tomas Delgado,Valdivia,4,Mensual,Fibra Plus,31990,2,0,18,2,1,29,3
+CXM0045,Magdalena Soto,Santiago,28,Anual,Basico,20990,0,0,2,4,0,41,1

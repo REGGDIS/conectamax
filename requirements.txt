@@ -1,2 +1,3 @@
-# Dependencias del proyecto ConectaMax.
-# Pendiente de definir en etapas posteriores.
+streamlit
+pandas
+pytest
