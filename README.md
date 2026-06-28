@@ -19,8 +19,10 @@ La aplicacion permite cargar datos de clientes desde CSV, validar su estructura,
 - Modulo `Clientes` para consultar, buscar, filtrar, ordenar y revisar fichas individuales.
 - Modulo `Dashboard` con KPIs, filtros generales y graficos descriptivos en Plotly.
 - Modulo `Analisis` con tablas resumen, comparacion por estado de abandono y conclusiones descriptivas simples.
+- Infraestructura desacoplada para SQLite usando `sqlite3` de la biblioteca estandar.
+- Repositorio provisional de clientes para pruebas de conexion y acceso a datos.
 - Navegacion con Prediccion como modulo pendiente.
-- Pruebas unitarias para validadores, servicio de carga, servicio de clientes, servicio de analisis y CSV simulado.
+- Pruebas unitarias para validadores, servicios, infraestructura SQLite y CSV simulado.
 
 ## Modulo Clientes
 
@@ -89,6 +91,20 @@ El modulo `Analisis` complementa el dashboard con tablas resumen por tipo de con
 
 Las conclusiones usan expresiones descriptivas como "En los datos analizados se observa..." y no establecen causalidad.
 
+## Infraestructura SQLite
+
+La ruta futura de base de datos esta centralizada en `config/settings.py` mediante `DATABASE_PATH`, apuntando a `data/conectamax.db` sin rutas absolutas.
+
+La capa `database/` incluye:
+
+- `connection.py`: apertura, verificacion y cierre de conexiones SQLite con `sqlite3`.
+- `models.py`: tabla minima `clientes_prueba`, exclusiva para pruebas de infraestructura.
+- `cliente_repository.py`: insercion, consulta por ID, consulta total y conteo sobre la tabla provisional.
+
+Esta infraestructura no reemplaza todavia `st.session_state["clientes_df"]` ni define el esquema definitivo. El archivo `conectamax.db`, el script SQL final, el modelo de tablas, el diccionario de datos y el generador de 2.000 clientes siguen pendientes.
+
+Las pruebas de base de datos usan bases SQLite temporales creadas con `tmp_path`; no usan `data/conectamax.db`.
+
 ## Dependencias
 
 Esta fase utiliza solo:
@@ -97,6 +113,8 @@ Esta fase utiliza solo:
 - `pandas`
 - `plotly`
 - `pytest`
+
+SQLite se usa mediante `sqlite3`, incluido en la biblioteca estandar de Python.
 
 ## Instalacion
 
@@ -171,6 +189,7 @@ Si un archivo invalido se procesa despues de uno valido, los datos activos anter
 
 - Persistencia en SQLite.
 - Integracion con la base de datos.
+- Esquema definitivo de SQLite.
 - Limpieza/preparacion avanzada.
 - Modelo predictivo.
 - Clasificacion de riesgo.
@@ -182,6 +201,8 @@ SQLite sera integrado en una fase posterior como base definitiva del proyecto.
 ## Limitaciones actuales
 
 - Los modulos `Dashboard` y `Analisis` consumen temporalmente `st.session_state["clientes_df"]`.
+- La infraestructura SQLite existe, pero las vistas y servicios funcionales aun no la consumen.
+- La tabla `clientes_prueba` no representa el esquema definitivo.
 - No existe persistencia de datos; al reiniciar la sesion se deben cargar nuevamente.
 - No hay modelo predictivo ni clasificacion de riesgo.
 - Los graficos y conclusiones son descriptivos y no implican causalidad.

@@ -10,7 +10,19 @@ CSV se usa como fuente temporal para validar las primeras fases funcionales sin 
 
 ## SQLite pendiente
 
-SQLite sera la base definitiva, pero no se integra todavia porque esta fase solo busca estabilizar contrato de datos, carga, validaciones, estado de sesion y analisis descriptivo. Esto evita acoplar la interfaz a una persistencia que aun no esta disponible.
+SQLite sera la base definitiva, pero no se integra todavia con las vistas porque esta fase solo prepara infraestructura tecnica desacoplada. Esto evita inventar un esquema antes de recibir el archivo `conectamax.db`, el script SQL definitivo, el modelo de tablas, el diccionario de datos y el generador de 2.000 clientes.
+
+## Uso de sqlite3
+
+La conexion se implementa con `sqlite3` de la biblioteca estandar para evitar dependencias adicionales como SQLAlchemy en esta fase. La ruta por defecto se centraliza en `config/settings.py` mediante `DATABASE_PATH`, apuntando a `data/conectamax.db` sin hardcodear rutas absolutas.
+
+## Conexion desacoplada
+
+`database/connection.py` concentra apertura, verificacion y cierre de conexiones. Permite rutas alternativas para pruebas, crea el directorio padre cuando corresponde, configura `row_factory = sqlite3.Row` y activa claves foraneas con `PRAGMA foreign_keys = ON;`. Este modulo no depende de Streamlit.
+
+## Tabla provisional de pruebas
+
+`database/models.py` define solo `crear_tabla_clientes_prueba`, una tabla minima para validar infraestructura. No representa el esquema definitivo y no agrega tablas de contratos, pagos, facturas, reclamos ni interacciones.
 
 ## session_state
 
@@ -32,6 +44,14 @@ Cuando un archivo invalido falla la validacion estructural, no reemplaza `client
 
 Las vistas muestran controles, mensajes, tablas y graficos, pero no contienen la logica principal de datos. `services/carga_datos_service.py` lee el CSV, reinicia el puntero si corresponde, normaliza nombres de columnas y llama a `utils/validators.py`. `services/cliente_service.py` concentra busqueda, filtros, ordenamiento, conteo y recuperacion de clientes. `services/analisis_service.py` concentra KPIs, filtros analiticos, agrupaciones y promedios por abandono. Los servicios y validadores no dependen de Streamlit ni Plotly.
 
+## Repositorio de clientes
+
+`database/cliente_repository.py` es independiente de las vistas y no depende de Pandas, Streamlit ni Plotly. Usa consultas parametrizadas sobre la tabla provisional de pruebas y solo implementa insercion, consulta, obtencion por ID y conteo. No incluye actualizacion, eliminacion ni reglas de negocio.
+
+## Pruebas con tmp_path
+
+Las pruebas de conexion y repositorio crean bases SQLite temporales mediante `tmp_path`. Esto confirma que la infraestructura funciona sin tocar `data/conectamax.db` ni depender de una base real del proyecto.
+
 ## Calculos fuera de las vistas
 
 La logica analitica se mantiene en `services/analisis_service.py` para que sea testeable y reemplazable. Las vistas `dashboard_view.py` y `analisis_view.py` solo solicitan parametros de interfaz, invocan el servicio y presentan los resultados. Esta decision evita duplicar reglas de calculo y facilita sustituir el origen de datos en una fase posterior.
@@ -42,4 +62,4 @@ La busqueda y los filtros del modulo `Clientes` se mantienen en `cliente_service
 
 ## Migracion futura mediante repositorios
 
-La evolucion prevista es `session_state / CSV provisional` -> repositorios -> SQLite. Los servicios deberan delegar consulta y persistencia a repositorios en `database/` para evitar modificar las vistas cuando se reemplace el DataFrame en `session_state` por consultas a SQLite. En particular, las agregaciones de `analisis_service.py` podran sustituirse gradualmente por consultas SQL cuando exista SQLite.
+La evolucion prevista es `session_state / CSV provisional` -> repositorios -> SQLite. Los servicios deberan delegar consulta y persistencia a repositorios en `database/` para evitar modificar las vistas cuando se reemplace el DataFrame en `session_state` por consultas a SQLite. En particular, las agregaciones de `analisis_service.py` podran sustituirse gradualmente por consultas SQL cuando exista el esquema definitivo de Raymond.
