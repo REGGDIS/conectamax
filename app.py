@@ -16,6 +16,9 @@ SESSION_DEFAULTS = {
     "ultimo_archivo_procesado": None,
     "resultado_validacion": None,
     "uploader_reset_counter": 0,
+    "clientes_df_limpio": None,
+    "reporte_limpieza": None,
+    "datos_preparados": False,
 }
 
 
@@ -39,7 +42,7 @@ def mostrar_inicio() -> None:
     st.title(APP_NAME)
     st.info(
         "Fase funcional actual: carga de archivos CSV, validacion basica, "
-        "consulta de clientes, dashboard y analisis descriptivo."
+        "consulta de clientes, dashboard, analisis descriptivo y preparacion de datos."
     )
     st.write("Prediccion se implementara en una fase posterior.")
 

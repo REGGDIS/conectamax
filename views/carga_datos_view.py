@@ -6,6 +6,7 @@ import streamlit as st
 
 from config.settings import CSV_EJEMPLO_PATH
 from services.carga_datos_service import cargar_y_validar_csv, construir_estado_carga
+from services.limpieza_service import preparar_datos
 
 
 def mostrar_carga_datos(limpiar_datos_sesion: Callable[[], None]) -> None:
@@ -31,6 +32,7 @@ def mostrar_carga_datos(limpiar_datos_sesion: Callable[[], None]) -> None:
         _procesar_archivo(archivo, archivo.name)
 
     _mostrar_estado_actual()
+    _mostrar_preparacion_avanzada()
 
 
 def _procesar_archivo(archivo, nombre_archivo: str) -> None:
@@ -83,6 +85,75 @@ def _mostrar_estado_actual() -> None:
         st.dataframe(df.head(), use_container_width=True)
     else:
         st.info("No hay un DataFrame valido cargado en la sesion.")
+
+
+def _mostrar_preparacion_avanzada() -> None:
+    """Permite ejecutar limpieza avanzada sin modificar el dataset original."""
+    st.subheader("Preparación avanzada")
+    df = st.session_state.get("clientes_df")
+    if not st.session_state.get("datos_cargados") or df is None or df.empty:
+        st.info("Carga un CSV valido antes de preparar los datos.")
+        return
+
+    st.write("El dataset original cargado se conservara sin modificaciones.")
+    if st.button("Preparar datos"):
+        df_limpio, reporte = preparar_datos(df)
+        st.session_state["clientes_df_limpio"] = df_limpio
+        st.session_state["reporte_limpieza"] = reporte
+        st.session_state["datos_preparados"] = True
+        st.success("Datos preparados correctamente.")
+
+    reporte = st.session_state.get("reporte_limpieza")
+    df_limpio = st.session_state.get("clientes_df_limpio")
+    if st.session_state.get("datos_preparados") and reporte is not None and df_limpio is not None:
+        _mostrar_reporte_limpieza(reporte)
+        st.subheader("Vista previa del dataset limpio")
+        st.dataframe(df_limpio.head(), use_container_width=True)
+        st.download_button(
+            "Descargar CSV limpio",
+            data=df_limpio.to_csv(index=False).encode("utf-8"),
+            file_name="clientes_preparados.csv",
+            mime="text/csv",
+        )
+
+
+def _mostrar_reporte_limpieza(reporte: dict) -> None:
+    """Muestra indicadores y detalles del reporte de limpieza."""
+    st.subheader("Reporte de limpieza")
+    col_ini, col_fin, col_elim, col_dup = st.columns(4)
+    col_ini.metric("Filas iniciales", reporte.get("filas_iniciales", 0))
+    col_fin.metric("Filas finales", reporte.get("filas_finales", 0))
+    col_elim.metric("Filas eliminadas", reporte.get("filas_eliminadas", 0))
+    col_dup.metric("Duplicados eliminados", reporte.get("duplicados_eliminados", 0))
+
+    detalles = [
+        {
+            "indicador": "IDs vacios eliminados",
+            "valor": reporte.get("ids_vacios_eliminados", 0),
+        },
+        {
+            "indicador": "Abandono invalido eliminado",
+            "valor": reporte.get("abandono_invalido_eliminado", 0),
+        },
+    ]
+    st.dataframe(detalles, use_container_width=True, hide_index=True)
+
+    _mostrar_dict_reporte("Valores no convertibles", reporte.get("valores_no_convertibles", {}))
+    _mostrar_dict_reporte("Valores fuera de rango", reporte.get("valores_fuera_de_rango", {}))
+    _mostrar_dict_reporte("Valores imputados", reporte.get("valores_imputados", {}))
+    columnas_derivadas = reporte.get("columnas_derivadas", [])
+    st.write("Columnas derivadas")
+    st.write(", ".join(columnas_derivadas) if columnas_derivadas else "Sin columnas derivadas.")
+
+
+def _mostrar_dict_reporte(titulo: str, valores: dict) -> None:
+    """Muestra un diccionario del reporte como tabla simple."""
+    st.write(titulo)
+    registros = [{"columna": columna, "valor": valor} for columna, valor in valores.items()]
+    if registros:
+        st.dataframe(registros, use_container_width=True, hide_index=True)
+    else:
+        st.write("Sin registros.")
 
 
 def _mostrar_lista(titulo: str, items: list[str], tipo: str) -> None:
