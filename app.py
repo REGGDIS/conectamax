@@ -3,8 +3,10 @@
 import streamlit as st
 
 from config.settings import APP_NAME
+from views.analisis_view import mostrar_analisis
 from views.carga_datos_view import mostrar_carga_datos
 from views.clientes_view import mostrar_clientes
+from views.dashboard_view import mostrar_dashboard
 
 
 SESSION_DEFAULTS = {
@@ -37,9 +39,9 @@ def mostrar_inicio() -> None:
     st.title(APP_NAME)
     st.info(
         "Fase funcional actual: carga de archivos CSV, validacion basica, "
-        "manejo centralizado de datos y consulta de clientes."
+        "consulta de clientes, dashboard y analisis descriptivo."
     )
-    st.write("Analisis y Prediccion se implementaran en fases posteriores.")
+    st.write("Prediccion se implementara en una fase posterior.")
 
 
 def mostrar_modulo_pendiente(nombre: str) -> None:
@@ -56,7 +58,7 @@ def main() -> None:
     st.sidebar.title(APP_NAME)
     opcion = st.sidebar.radio(
         "Navegacion",
-        ["Inicio", "Carga de datos", "Clientes", "Analisis", "Prediccion"],
+        ["Inicio", "Carga de datos", "Clientes", "Dashboard", "Analisis", "Prediccion"],
     )
 
     if opcion == "Inicio":
@@ -65,8 +67,10 @@ def main() -> None:
         mostrar_carga_datos(limpiar_datos_sesion)
     elif opcion == "Clientes":
         mostrar_clientes()
+    elif opcion == "Dashboard":
+        mostrar_dashboard()
     elif opcion == "Analisis":
-        mostrar_modulo_pendiente("Analisis")
+        mostrar_analisis()
     elif opcion == "Prediccion":
         mostrar_modulo_pendiente("Prediccion")
 
