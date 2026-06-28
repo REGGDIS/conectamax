@@ -93,3 +93,25 @@ ETIQUETAS_ABANDONO = {
     0: "Permanece",
     1: "Abandonó",
 }
+
+OPCIONES_FILTRO_ABANDONO = {
+    "Todos": None,
+    "Permanece": 0,
+    "Abandonó": 1,
+}
+
+COLUMNAS_AGRUPACION_ANALISIS = [
+    "ciudad",
+    "tipo_contrato",
+    "plan",
+]
+
+ETIQUETAS_COLUMNAS_ANALISIS = {
+    "ciudad": "Ciudad",
+    "tipo_contrato": "Tipo de contrato",
+    "plan": "Plan",
+    "satisfaccion": "Satisfacción promedio",
+    "reclamos_ultimos_6_meses": "Reclamos promedio",
+    "pagos_atrasados": "Pagos atrasados promedio",
+    "dias_sin_uso": "Días sin uso promedio",
+}

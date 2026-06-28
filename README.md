@@ -4,7 +4,7 @@ Aplicacion academica tipo CRM para analizar y, en fases posteriores, predecir el
 
 ## Estado actual
 
-La aplicacion permite cargar datos de clientes desde CSV, validar su estructura, conservar los datos validos activos en la sesion de Streamlit y consultar clientes desde un modulo funcional.
+La aplicacion permite cargar datos de clientes desde CSV, validar su estructura, conservar los datos validos activos en la sesion de Streamlit, consultar clientes y revisar un dashboard con analisis descriptivo del abandono.
 
 ## Funcionalidades implementadas
 
@@ -17,8 +17,10 @@ La aplicacion permite cargar datos de clientes desde CSV, validar su estructura,
 - Servicio desacoplado para lectura, normalizacion de columnas y validacion de CSV.
 - Estado centralizado con `st.session_state`.
 - Modulo `Clientes` para consultar, buscar, filtrar, ordenar y revisar fichas individuales.
-- Navegacion inicial con modulos pendientes para analisis y prediccion.
-- Pruebas unitarias para validadores, servicio de carga, servicio de clientes y CSV simulado.
+- Modulo `Dashboard` con KPIs, filtros generales y graficos descriptivos en Plotly.
+- Modulo `Analisis` con tablas resumen, comparacion por estado de abandono y conclusiones descriptivas simples.
+- Navegacion con Prediccion como modulo pendiente.
+- Pruebas unitarias para validadores, servicio de carga, servicio de clientes, servicio de analisis y CSV simulado.
 
 ## Modulo Clientes
 
@@ -44,12 +46,56 @@ Ordenamiento disponible:
 
 La vista muestra una tabla resumida de resultados y una ficha del cliente seleccionado con sus datos principales. No permite editar ni eliminar clientes en esta fase.
 
+## Modulo Dashboard
+
+El modulo `Dashboard` usa temporalmente el DataFrame activo almacenado en `st.session_state["clientes_df"]`.
+
+Filtros generales disponibles:
+
+- Ciudad.
+- Tipo de contrato.
+- Plan.
+- Estado de abandono: `Todos`, `Permanece`, `Abandonó`.
+
+KPIs implementados:
+
+- Total de clientes.
+- Clientes que permanecen.
+- Clientes que abandonaron.
+- Tasa de abandono.
+- Tasa de retencion.
+- Satisfaccion promedio.
+- Monto mensual promedio.
+- Reclamos promedio.
+- Pagos atrasados promedio.
+- Dias sin uso promedio.
+
+Graficos disponibles:
+
+- Clientes que permanecen frente a clientes que abandonaron.
+- Tasa de abandono por tipo de contrato.
+- Tasa de abandono por ciudad.
+- Tasa de abandono por plan.
+- Satisfaccion promedio segun abandono.
+- Reclamos promedio segun abandono.
+- Pagos atrasados promedio segun abandono.
+- Dias sin uso promedio segun abandono.
+
+Si no hay datos cargados o los filtros no devuelven registros, la vista muestra mensajes controlados y no genera errores.
+
+## Modulo Analisis
+
+El modulo `Analisis` complementa el dashboard con tablas resumen por tipo de contrato, ciudad y plan. Tambien muestra una comparacion de metricas promedio por estado de abandono y conclusiones descriptivas automaticas simples.
+
+Las conclusiones usan expresiones descriptivas como "En los datos analizados se observa..." y no establecen causalidad.
+
 ## Dependencias
 
 Esta fase utiliza solo:
 
 - `streamlit`
 - `pandas`
+- `plotly`
 - `pytest`
 
 ## Instalacion
@@ -123,12 +169,19 @@ Si un archivo invalido se procesa despues de uno valido, los datos activos anter
 
 ## Funcionalidades pendientes
 
-- Dashboard completo.
-- Graficos de analisis.
-- PostgreSQL.
-- SQLAlchemy.
+- Persistencia en SQLite.
+- Integracion con la base de datos.
+- Limpieza/preparacion avanzada.
 - Modelo predictivo.
-- Reportes.
+- Clasificacion de riesgo.
+- Reportes finales.
 - Autenticacion.
 
-PostgreSQL sera integrado en una fase posterior como base definitiva del proyecto.
+SQLite sera integrado en una fase posterior como base definitiva del proyecto.
+
+## Limitaciones actuales
+
+- Los modulos `Dashboard` y `Analisis` consumen temporalmente `st.session_state["clientes_df"]`.
+- No existe persistencia de datos; al reiniciar la sesion se deben cargar nuevamente.
+- No hay modelo predictivo ni clasificacion de riesgo.
+- Los graficos y conclusiones son descriptivos y no implican causalidad.
