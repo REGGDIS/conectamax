@@ -68,3 +68,28 @@ SATISFACCION_MIN = 1
 SATISFACCION_MAX = 5
 EDAD_MIN_RAZONABLE = 0
 EDAD_MAX_RAZONABLE = 110
+
+COLUMNAS_CLIENTES_TABLA = [
+    "id_cliente",
+    "nombre",
+    "ciudad",
+    "tipo_contrato",
+    "plan",
+    "monto_mensual",
+    "satisfaccion",
+    "abandono",
+]
+
+COLUMNAS_ORDEN_CLIENTES = [
+    "id_cliente",
+    "nombre",
+    "ciudad",
+    "antiguedad_meses",
+    "monto_mensual",
+    "satisfaccion",
+]
+
+ETIQUETAS_ABANDONO = {
+    0: "Permanece",
+    1: "Abandonó",
+}

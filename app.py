@@ -4,6 +4,7 @@ import streamlit as st
 
 from config.settings import APP_NAME
 from views.carga_datos_view import mostrar_carga_datos
+from views.clientes_view import mostrar_clientes
 
 
 SESSION_DEFAULTS = {
@@ -35,10 +36,10 @@ def mostrar_inicio() -> None:
     """Muestra la pantalla inicial de la fase actual."""
     st.title(APP_NAME)
     st.info(
-        "Fase funcional inicial: carga de archivos CSV, validacion basica "
-        "y manejo centralizado de datos en la sesion."
+        "Fase funcional actual: carga de archivos CSV, validacion basica, "
+        "manejo centralizado de datos y consulta de clientes."
     )
-    st.write("Los demas modulos se implementaran en fases posteriores.")
+    st.write("Analisis y Prediccion se implementaran en fases posteriores.")
 
 
 def mostrar_modulo_pendiente(nombre: str) -> None:
@@ -63,7 +64,7 @@ def main() -> None:
     elif opcion == "Carga de datos":
         mostrar_carga_datos(limpiar_datos_sesion)
     elif opcion == "Clientes":
-        mostrar_modulo_pendiente("Clientes")
+        mostrar_clientes()
     elif opcion == "Analisis":
         mostrar_modulo_pendiente("Analisis")
     elif opcion == "Prediccion":
