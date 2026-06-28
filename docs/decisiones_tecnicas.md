@@ -40,6 +40,30 @@ Las validaciones estructurales bloquean el uso de archivos sin condiciones minim
 
 Cuando un archivo invalido falla la validacion estructural, no reemplaza `clientes_df` ni `nombre_archivo_activo`. Solo actualiza `ultimo_archivo_procesado` y `resultado_validacion`, para informar el error sin perder los datos validos en uso.
 
+## Preparacion avanzada de datos
+
+La limpieza avanzada se implementa en `services/limpieza_service.py` como logica pura de Pandas. El proceso no muta el dataset original: `clientes_df` conserva la carga validada y `clientes_df_limpio` almacena el resultado preparado. Al cargar un nuevo CSV valido se reinician el DataFrame limpio, el reporte de limpieza y el indicador `datos_preparados`.
+
+## Reglas de imputacion
+
+Las variables continuas o de escala se imputan con mediana cuando existe al menos un valor valido: edad, antiguedad, monto mensual, cantidad de servicios, dias sin uso y satisfaccion. Los conteos operativos de reclamos y pagos atrasados se imputan con cero porque la ausencia de registro se interpreta como ausencia de eventos en esta fase. Si no existe mediana valida, se usa un respaldo documentado en el reporte.
+
+## Objetivo valido
+
+La columna `abandono` no se imputa arbitrariamente. Las filas sin objetivo valido, o con valores distintos de `0` y `1`, se eliminan para evitar contaminar futuras etapas supervisadas.
+
+## Discretizacion descriptiva
+
+Se crean variables derivadas descriptivas: `grupo_edad`, `grupo_antiguedad`, `nivel_satisfaccion`, `tiene_morosidad` y `tiene_reclamos`. Estas variables facilitan analisis y preparacion futura, pero no representan predicciones ni clasificaciones de riesgo.
+
+## Prevencion de fuga de informacion
+
+La preparacion no crea variables basadas en probabilidad de abandono, riesgo, predicciones ni abandono futuro. Las variables derivadas usan solo atributos observables del cliente y evitan mezclar limpieza con modelado.
+
+## Separacion entre limpieza y modelado
+
+La fase actual deja un dataset preparado para Machine Learning futuro, pero no entrena modelos ni define clasificadores. El servicio de limpieza produce un DataFrame limpio y un reporte explicable; el entrenamiento predictivo debera implementarse en una fase posterior usando este resultado como insumo.
+
 ## Separacion de responsabilidades
 
 Las vistas muestran controles, mensajes, tablas y graficos, pero no contienen la logica principal de datos. `services/carga_datos_service.py` lee el CSV, reinicia el puntero si corresponde, normaliza nombres de columnas y llama a `utils/validators.py`. `services/cliente_service.py` concentra busqueda, filtros, ordenamiento, conteo y recuperacion de clientes. `services/analisis_service.py` concentra KPIs, filtros analiticos, agrupaciones y promedios por abandono. Los servicios y validadores no dependen de Streamlit ni Plotly.
@@ -62,4 +86,4 @@ La busqueda y los filtros del modulo `Clientes` se mantienen en `cliente_service
 
 ## Migracion futura mediante repositorios
 
-La evolucion prevista es `session_state / CSV provisional` -> repositorios -> SQLite. Los servicios deberan delegar consulta y persistencia a repositorios en `database/` para evitar modificar las vistas cuando se reemplace el DataFrame en `session_state` por consultas a SQLite. En particular, las agregaciones de `analisis_service.py` podran sustituirse gradualmente por consultas SQL cuando exista el esquema definitivo de Raymond.
+La evolucion prevista es `session_state / CSV provisional` -> repositorios -> SQLite. Los servicios deberan delegar consulta y persistencia a repositorios en `database/` para evitar modificar las vistas cuando se reemplace el DataFrame en `session_state` por consultas a SQLite. En particular, las agregaciones de `analisis_service.py` y el uso futuro de `clientes_df_limpio` podran sustituirse gradualmente por consultas SQL cuando exista el esquema definitivo de Raymond.

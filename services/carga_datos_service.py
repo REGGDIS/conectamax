@@ -46,12 +46,18 @@ def construir_estado_carga(
         "nombre_archivo_activo": estado_actual.get("nombre_archivo_activo"),
         "ultimo_archivo_procesado": nombre_archivo,
         "resultado_validacion": resultado,
+        "clientes_df_limpio": estado_actual.get("clientes_df_limpio"),
+        "reporte_limpieza": estado_actual.get("reporte_limpieza"),
+        "datos_preparados": estado_actual.get("datos_preparados", False),
     }
 
     if resultado.get("es_valido") and df is not None:
         nuevo_estado["clientes_df"] = df
         nuevo_estado["datos_cargados"] = True
         nuevo_estado["nombre_archivo_activo"] = nombre_archivo
+        nuevo_estado["clientes_df_limpio"] = None
+        nuevo_estado["reporte_limpieza"] = None
+        nuevo_estado["datos_preparados"] = False
 
     return nuevo_estado
 

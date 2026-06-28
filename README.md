@@ -4,7 +4,7 @@ Aplicacion academica tipo CRM para analizar y, en fases posteriores, predecir el
 
 ## Estado actual
 
-La aplicacion permite cargar datos de clientes desde CSV, validar su estructura, conservar los datos validos activos en la sesion de Streamlit, consultar clientes y revisar un dashboard con analisis descriptivo del abandono.
+La aplicacion permite cargar datos de clientes desde CSV, validar su estructura, conservar los datos validos activos en la sesion de Streamlit, preparar un dataset limpio, consultar clientes y revisar un dashboard con analisis descriptivo del abandono.
 
 ## Funcionalidades implementadas
 
@@ -16,6 +16,7 @@ La aplicacion permite cargar datos de clientes desde CSV, validar su estructura,
 - Validaciones estructurales bloqueantes y validaciones de calidad no bloqueantes.
 - Servicio desacoplado para lectura, normalizacion de columnas y validacion de CSV.
 - Estado centralizado con `st.session_state`.
+- Preparacion avanzada de datos con reporte de limpieza y descarga de CSV preparado.
 - Modulo `Clientes` para consultar, buscar, filtrar, ordenar y revisar fichas individuales.
 - Modulo `Dashboard` con KPIs, filtros generales y graficos descriptivos en Plotly.
 - Modulo `Analisis` con tablas resumen, comparacion por estado de abandono y conclusiones descriptivas simples.
@@ -90,6 +91,30 @@ Si no hay datos cargados o los filtros no devuelven registros, la vista muestra 
 El modulo `Analisis` complementa el dashboard con tablas resumen por tipo de contrato, ciudad y plan. Tambien muestra una comparacion de metricas promedio por estado de abandono y conclusiones descriptivas automaticas simples.
 
 Las conclusiones usan expresiones descriptivas como "En los datos analizados se observa..." y no establecen causalidad.
+
+## Preparacion avanzada de datos
+
+La vista `Carga de datos` incluye una seccion `Preparación avanzada` que ejecuta un proceso reproducible sobre el DataFrame activo. El dataset original se conserva en `st.session_state["clientes_df"]` y el resultado limpio se guarda por separado en `st.session_state["clientes_df_limpio"]`.
+
+Reglas principales de limpieza:
+
+- Normalizacion de `id_cliente`, eliminacion de IDs vacios y duplicados conservando la primera aparicion.
+- Normalizacion de textos en `nombre`, `ciudad`, `tipo_contrato` y `plan`.
+- Conversion numerica con `pd.to_numeric(..., errors="coerce")`.
+- Imputacion por mediana para edad, antiguedad, monto mensual, cantidad de servicios, dias sin uso y satisfaccion.
+- Imputacion con cero para reclamos y pagos atrasados.
+- Eliminacion de filas con `abandono` faltante o distinto de `0` y `1`.
+- Correccion de valores fuera de rango mediante conversion a faltante y posterior imputacion.
+
+Variables derivadas agregadas:
+
+- `grupo_edad`.
+- `grupo_antiguedad`.
+- `nivel_satisfaccion`.
+- `tiene_morosidad`.
+- `tiene_reclamos`.
+
+El reporte de limpieza resume filas iniciales y finales, filas eliminadas, duplicados, IDs vacios, objetivos invalidos, valores no convertibles, valores fuera de rango, imputaciones y columnas derivadas. El CSV preparado puede descargarse como `clientes_preparados.csv` sin escribir archivos automaticamente en el repositorio.
 
 ## Infraestructura SQLite
 
@@ -182,6 +207,9 @@ La aplicacion mantiene estas claves principales en `st.session_state`:
 - `nombre_archivo_activo`: archivo cuyos datos estan actualmente en uso.
 - `ultimo_archivo_procesado`: ultimo archivo que se intento validar.
 - `resultado_validacion`: resultado del ultimo intento de validacion.
+- `clientes_df_limpio`: DataFrame preparado por la limpieza avanzada.
+- `reporte_limpieza`: resumen del proceso de preparacion.
+- `datos_preparados`: indica si existe un dataset limpio activo.
 
 Si un archivo invalido se procesa despues de uno valido, los datos activos anteriores se conservan.
 
@@ -190,7 +218,6 @@ Si un archivo invalido se procesa despues de uno valido, los datos activos anter
 - Persistencia en SQLite.
 - Integracion con la base de datos.
 - Esquema definitivo de SQLite.
-- Limpieza/preparacion avanzada.
 - Modelo predictivo.
 - Clasificacion de riesgo.
 - Reportes finales.
@@ -201,6 +228,7 @@ SQLite sera integrado en una fase posterior como base definitiva del proyecto.
 ## Limitaciones actuales
 
 - Los modulos `Dashboard` y `Analisis` consumen temporalmente `st.session_state["clientes_df"]`.
+- El dataset limpio queda preparado y descargable, pero no reemplaza globalmente al dataset original.
 - La infraestructura SQLite existe, pero las vistas y servicios funcionales aun no la consumen.
 - La tabla `clientes_prueba` no representa el esquema definitivo.
 - No existe persistencia de datos; al reiniciar la sesion se deben cargar nuevamente.

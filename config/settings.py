@@ -116,3 +116,49 @@ ETIQUETAS_COLUMNAS_ANALISIS = {
     "pagos_atrasados": "Pagos atrasados promedio",
     "dias_sin_uso": "Días sin uso promedio",
 }
+
+COLUMNAS_TEXTO_LIMPIEZA = [
+    "ciudad",
+    "tipo_contrato",
+    "plan",
+]
+
+COLUMNAS_NUMERICAS_LIMPIEZA = [
+    "edad",
+    "antiguedad_meses",
+    "monto_mensual",
+    "cantidad_servicios",
+    "reclamos_ultimos_6_meses",
+    "pagos_atrasados",
+    "dias_sin_uso",
+    "satisfaccion",
+    "abandono",
+]
+
+RANGOS_VALIDOS_LIMPIEZA = {
+    "edad": (18, 100),
+    "antiguedad_meses": (0, None),
+    "monto_mensual": (0, None),
+    "cantidad_servicios": (0, None),
+    "reclamos_ultimos_6_meses": (0, None),
+    "pagos_atrasados": (0, None),
+    "dias_sin_uso": (0, None),
+    "satisfaccion": (1, 5),
+}
+
+VALORES_RESPALDO_LIMPIEZA = {
+    "edad": 18,
+    "antiguedad_meses": 0,
+    "monto_mensual": 0.0,
+    "cantidad_servicios": 0,
+    "dias_sin_uso": 0,
+    "satisfaccion": 3,
+}
+
+COLUMNAS_DERIVADAS_LIMPIEZA = [
+    "grupo_edad",
+    "grupo_antiguedad",
+    "nivel_satisfaccion",
+    "tiene_morosidad",
+    "tiene_reclamos",
+]
