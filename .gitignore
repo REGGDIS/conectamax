@@ -5,6 +5,9 @@ __pycache__/
 .env
 .pytest_cache/
 .streamlit/secrets.toml
+.engram/
 data/*.db
 data/clientes_generados.csv
 models/
+docs/AVANCE_Y_PENDIENTES_RAYMOND.md
+docs/Aporte_Informe_BD_Modelo_Resultados.docx
