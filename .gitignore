@@ -5,3 +5,5 @@ __pycache__/
 .env
 .pytest_cache/
 .streamlit/secrets.toml
+data/*.db
+data/clientes_generados.csv
