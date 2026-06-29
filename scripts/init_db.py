@@ -7,25 +7,28 @@ import argparse
 import os
 import sqlite3
 
-RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from _paths import default_db, schema_path
 
 
-def init_db(db_path: str, schema_path: str | None = None) -> None:
-    if schema_path is None:
-        schema_path = os.path.join(RAIZ, "database", "schema.sql")
+def init_db(db_path: str, schema: str | None = None) -> None:
+    schema = schema or schema_path()
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     con = sqlite3.connect(db_path)
-    con.execute("PRAGMA foreign_keys = ON")
-    with open(schema_path, encoding="utf-8") as fh:
-        con.executescript(fh.read())
-    con.commit()
-    con.close()
+    try:
+        con.execute("PRAGMA foreign_keys = ON")
+        con.executescript(open(schema, encoding="utf-8").read())
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
     print(f"BD inicializada: {db_path}")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--db", default="data/conectamax.db")
+    ap.add_argument("--db", default=default_db())
     ap.add_argument("--schema", default=None)
     a = ap.parse_args()
     init_db(a.db, a.schema)

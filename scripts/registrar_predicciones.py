@@ -1,69 +1,69 @@
-"""Genera predicciones de churn para todos los clientes y las registra en la
-tabla `predicciones` (Spec 05 / integracion Fase 7).
+"""Registra predicciones en la tabla `predicciones` (rev. PR #6).
 
-Mantiene separados el estado real (`abandono` en clientes) y la prediccion
-(tabla `predicciones`), conforme al Plan v3.2 §29.6.
-
-Uso:
-    python scripts/registrar_predicciones.py [--db data/conectamax.db]
-        [--modelo models/modelo_churn.pkl] [--version v1] [--limpiar]
+- Activa claves foraneas (punto 11).
+- Transacciones seguras con rollback y cierre (punto 6).
+- `limpiar` por defecto False para no borrar el historial (punto 12).
+- Toma modelo/version de los metadatos del bundle.
 """
 from __future__ import annotations
 
 import argparse
-import os
 import sqlite3
 from datetime import datetime
 
 import pandas as pd
 
-import predictor as pr  # mismo directorio scripts/
-
-RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODELO_NOMBRE = "arbol_decision"
+import predictor as pr
+from _paths import default_db, default_modelo
 
 
-def generar(db_path: str, modelo_path: str) -> pd.DataFrame:
-    """Lee la vista analitica y devuelve id_cliente, probabilidad y nivel."""
+def generar(db_path: str, modelo_path: str):
+    bundle = pr.cargar_modelo(modelo_path)
     con = sqlite3.connect(db_path)
-    df = pd.read_sql("SELECT * FROM comportamiento_cliente", con)
-    con.close()
-    modelo = pr.cargar_modelo(modelo_path)
-    return pr.predecir(df, modelo)
+    try:
+        df = pd.read_sql("SELECT * FROM comportamiento_cliente", con)
+    finally:
+        con.close()
+    return pr.predecir(df, bundle), bundle
 
 
-def guardar(db_path: str, df_pred: pd.DataFrame, modelo_nombre: str = MODELO_NOMBRE,
+def guardar(db_path: str, df_pred: pd.DataFrame, modelo_nombre: str = "arbol_decision",
             version: str = "v1", limpiar: bool = False) -> int:
-    """Inserta las predicciones en la tabla `predicciones`. Si limpiar=True,
-    borra las predicciones previas de ese modelo+version."""
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    filas = [
-        (row.id_cliente, float(row.probabilidad_churn), row.nivel_riesgo,
-         modelo_nombre, version, ahora)
-        for row in df_pred.itertuples(index=False)
-    ]
+    filas = [(r.id_cliente, float(r.probabilidad_churn), r.nivel_riesgo,
+              modelo_nombre, version, ahora)
+             for r in df_pred.itertuples(index=False)]
     con = sqlite3.connect(db_path)
-    if limpiar:
-        con.execute("DELETE FROM predicciones WHERE modelo=? AND version_modelo=?",
-                    (modelo_nombre, version))
-    con.executemany(
-        "INSERT INTO predicciones "
-        "(id_cliente, probabilidad_churn, nivel_riesgo, modelo, version_modelo, fecha_prediccion) "
-        "VALUES (?,?,?,?,?,?)", filas)
-    con.commit()
-    con.close()
+    try:
+        con.execute("PRAGMA foreign_keys = ON")
+        if limpiar:
+            con.execute("DELETE FROM predicciones WHERE modelo=? AND version_modelo=?",
+                        (modelo_nombre, version))
+        con.executemany(
+            "INSERT INTO predicciones "
+            "(id_cliente, probabilidad_churn, nivel_riesgo, modelo, version_modelo, fecha_prediccion) "
+            "VALUES (?,?,?,?,?,?)", filas)
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
     return len(filas)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--db", default=os.path.join(RAIZ, "data", "conectamax.db"))
-    ap.add_argument("--modelo", default=os.path.join(RAIZ, "models", "modelo_churn.pkl"))
-    ap.add_argument("--version", default="v1")
-    ap.add_argument("--limpiar", action="store_true", help="borra predicciones previas del modelo+version")
+    ap.add_argument("--db", default=default_db())
+    ap.add_argument("--modelo", default=default_modelo())
+    ap.add_argument("--version", default=None)
+    ap.add_argument("--limpiar", action="store_true",
+                    help="borra predicciones previas del mismo modelo+version")
     a = ap.parse_args()
-    df = generar(a.db, a.modelo)
-    n = guardar(a.db, df, version=a.version, limpiar=a.limpiar)
+    df, bundle = generar(a.db, a.modelo)
+    nombre = bundle.get("modelo_nombre", "arbol_decision") if isinstance(bundle, dict) else "arbol_decision"
+    version = a.version or (bundle.get("version", "v1") if isinstance(bundle, dict) else "v1")
+    n = guardar(a.db, df, nombre, version, limpiar=a.limpiar)
     print(f"Predicciones registradas: {n}")
     print(df["nivel_riesgo"].value_counts().to_string())
 

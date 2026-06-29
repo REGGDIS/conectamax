@@ -9,6 +9,14 @@
 
 ---
 
+## 0. `parametros`
+Configuración de la base (una sola fila). Define la fecha de referencia para las ventanas de "últimos 6 meses" de la vista analítica.
+
+| Campo | Tipo | Nulo | Descripción | Clave |
+|---|---|---|---|---|
+| id | INTEGER | No | Siempre 1 (`CHECK id = 1`). | PK |
+| fecha_referencia | TEXT | No | Fecha "actual" del sistema (YYYY-MM-DD) para los cálculos de 6 meses. |
+
 ## 1. `sucursales`
 Catálogo de las 5 sucursales comerciales (dimensión geográfica; apoya la hipótesis H6).
 
@@ -127,9 +135,9 @@ Vista analítica que **alimenta el modelo** y la app. Agrega las tablas anterior
 | antiguedad_meses | INTEGER | clientes |
 | tipo_contrato | TEXT | contrato principal (es_principal = 1) |
 | plan | TEXT | servicio del contrato principal |
-| monto_mensual | REAL | monto del contrato principal |
-| reclamos_ultimos_6_meses | INTEGER | COUNT de reclamos del cliente |
-| pagos_atrasados | INTEGER | COUNT de pagos con estado `atrasado` |
+| monto_mensual | REAL | **suma** de los contratos activos del cliente |
+| reclamos_ultimos_6_meses | INTEGER | COUNT de reclamos en los **últimos 6 meses** (respecto a `parametros.fecha_referencia`) |
+| pagos_atrasados | INTEGER | COUNT de pagos `atrasado` en los **últimos 6 meses** |
 | dias_sin_uso | INTEGER | clientes |
 | satisfaccion | INTEGER | clientes |
 | **abandono** | INTEGER | clientes (variable objetivo) |

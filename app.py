@@ -42,10 +42,11 @@ def mostrar_inicio() -> None:
     """Muestra la pantalla inicial de la fase actual."""
     st.title(APP_NAME)
     st.info(
-        "Fase funcional actual: carga de archivos CSV, validacion basica, "
-        "consulta de clientes, dashboard, analisis descriptivo y preparacion de datos."
+        "Modulos disponibles: carga de archivos CSV, validacion basica, "
+        "consulta de clientes, dashboard, analisis descriptivo, "
+        "preparacion de datos y Prediccion de churn."
     )
-    st.write("Prediccion se implementara en una fase posterior.")
+    st.success("El modulo Prediccion esta integrado. Accedelo desde el menu lateral.")
 
 
 def mostrar_modulo_pendiente(nombre: str) -> None:
