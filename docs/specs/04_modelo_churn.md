@@ -88,3 +88,9 @@ Features candidatas (confirmar en implementación):
 - `satisfaccion`, `reclamos_ultimos_6_meses`, `pagos_atrasados`, `antiguedad_meses`, `dias_sin_uso`, `monto_mensual`, `cantidad_servicios`, `tipo_contrato`, `plan` (codificado).
 
 Excluir: `id_cliente`, `nombre`, `abandono`, `region`, `segmento` (opcional según decisión documentada).
+
+---
+
+## Ajustes revisión PR #6 — Ronda 2 (no bloqueante)
+
+**Lista explícita de variables predictoras.** En lugar de derivar las features "por descarte" (todo menos `DROP`), `train.py` declara una lista explícita `FEATURES` con las columnas que el modelo puede usar. Esto documenta el contrato del modelo, evita que una columna nueva en la vista entre al modelo sin querer, y mantiene la exclusión de `segmento`, `id_cliente`, `nombre` y el target `abandono`.

@@ -3,6 +3,7 @@
 - Captura errores para que la app no se caiga (punto 13).
 - Aclara que usa SQLite y no el CSV cargado (punto 14).
 - El registro NO usa limpiar=True por defecto; es opcional via checkbox (punto 12).
+- Cache invalidada por mtime de BD y modelo (no bloqueante, ronda 2).
 """
 import os
 import sys
@@ -22,8 +23,15 @@ MODELO = default_modelo()
 COLORES = {"bajo": "#2ecc71", "medio": "#f1c40f", "alto": "#e74c3c"}
 
 
+def _firma_archivo(path: str) -> float:
+    """mtime del archivo como clave de cache; 0.0 si no existe."""
+    return os.path.getmtime(path) if os.path.exists(path) else 0.0
+
+
 @st.cache_data(show_spinner=False)
-def _cargar_predicciones():
+def _cargar_predicciones(db_sig: float, modelo_sig: float):
+    # db_sig y modelo_sig forman parte de la clave de cache: si cambia la BD o el
+    # modelo (su mtime), Streamlit recalcula y no muestra predicciones obsoletas.
     df, bundle = rp.generar(DB, MODELO)
     meta = {"modelo": bundle.get("modelo_nombre", "arbol_decision"),
             "version": bundle.get("version", "v1")} if isinstance(bundle, dict) else {}
@@ -49,7 +57,7 @@ def render():
         return
 
     try:
-        pred, meta = _cargar_predicciones()
+        pred, meta = _cargar_predicciones(_firma_archivo(DB), _firma_archivo(MODELO))
     except Exception as e:
         st.error(f"No se pudieron calcular las predicciones: {e}")
         return

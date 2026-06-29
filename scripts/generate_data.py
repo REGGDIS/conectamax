@@ -5,10 +5,15 @@ expande al modelo relacional. La variable `abandono` surge de varios drivers
 ponderados + ruido (Plan v3.2 §29.3).
 
 Por seguridad NO borra datos existentes salvo que se pase --reset (punto 1).
-Maneja transacciones con rollback y cierre seguro (punto 6).
+--reset limpia SOLO los datos operacionales/sinteticos y PRESERVA el historial de
+`predicciones`. El borrado de predicciones es una accion separada y explicita:
+--reset-predicciones (punto 1, ronda 2). Como `predicciones` referencia `clientes`
+por FK, durante el reset se usa `PRAGMA defer_foreign_keys=ON` y la integridad se
+valida en el commit. Maneja transacciones con rollback y cierre seguro (punto 6).
 
 Uso:
-    python scripts/generate_data.py [--db data/conectamax.db] [--n 2500] [--csv] [--reset]
+    python scripts/generate_data.py [--db data/conectamax.db] [--n 2500] [--csv]
+                                    [--reset] [--reset-predicciones]
 """
 from __future__ import annotations
 
@@ -52,7 +57,7 @@ PLAN_PESO = [0.22, 0.24, 0.26, 0.18, 0.10]
 TIPO_CONTRATO = ["Mensual", "Anual", "Bienal"]
 TIPO_PESO = [0.55, 0.32, 0.13]
 SEGMENTOS = ["Jovenes Digitales", "Familias Conectadas", "Profesionales Urbanos",
-             "Adultos Mayores", "Clientes en Riesgo"]
+             "Adultos Mayores", "Clientes Premium"]
 GENEROS = ["F", "M", "otro"]
 NOMBRES = ["Ana", "Luis", "Marcela", "Diego", "Camila", "Jorge", "Paula", "Felipe",
            "Daniela", "Roberto", "Isabel", "Matias", "Carolina", "Andres", "Valentina"]
@@ -62,8 +67,10 @@ APELLIDOS = ["Rojas", "Paredes", "Soto", "Salinas", "Fuentes", "Molina", "Herrer
 W = dict(b0=-0.95, reclamos=2.4, pagos=1.9, satisf=2.0, desuso=1.5,
          antig=1.6, servicios=1.1, mensual=0.9, sigma=0.40)
 
-TABLAS = ["predicciones", "interacciones", "reclamos", "pagos", "facturas",
-          "contratos", "clientes", "servicios", "sucursales", "parametros"]
+# Datos operacionales/sinteticos que regenera --reset (NO incluye 'predicciones',
+# punto 1). El orden respeta las dependencias FK (hijas antes que padres).
+TABLAS_OPERACIONALES = ["interacciones", "reclamos", "pagos", "facturas",
+                        "contratos", "clientes", "servicios", "sucursales", "parametros"]
 
 
 def sigmoide(x: float) -> float:
@@ -151,20 +158,51 @@ def construir(n: int):
     return clientes, contratos, facturas, pagos, reclamos, interacciones
 
 
-def poblar(db_path: str, n: int, exportar_csv: bool = False, reset: bool = False):
+def validar_un_principal_por_cliente(con) -> None:
+    """Punto 3: cada cliente debe tener EXACTAMENTE un contrato principal activo.
+
+    El indice unico parcial garantiza 'a lo sumo uno'; SQLite no puede exigir 'al
+    menos uno' con un CHECK entre tablas, asi que se valida aqui antes del commit.
+    """
+    sin_principal = con.execute(
+        "SELECT COUNT(*) FROM clientes c WHERE NOT EXISTS ("
+        "  SELECT 1 FROM contratos co WHERE co.id_cliente = c.id_cliente"
+        "    AND co.es_principal = 1 AND co.estado = 'activo')").fetchone()[0]
+    duplicados = con.execute(
+        "SELECT COUNT(*) FROM (SELECT id_cliente FROM contratos"
+        "  WHERE es_principal = 1 AND estado = 'activo'"
+        "  GROUP BY id_cliente HAVING COUNT(*) > 1)").fetchone()[0]
+    if sin_principal or duplicados:
+        raise ValueError(
+            f"Integridad de contratos: {sin_principal} cliente(s) sin contrato "
+            f"principal activo y {duplicados} con mas de uno. Se esperaba exactamente "
+            "uno por cliente.")
+
+
+def poblar(db_path: str, n: int, exportar_csv: bool = False, reset: bool = False,
+           reset_predicciones: bool = False):
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     con = sqlite3.connect(db_path)
+    con.isolation_level = None  # control manual de transacciones (necesario para defer_foreign_keys)
     try:
         con.execute("PRAGMA foreign_keys = ON")
-        con.executescript(open(schema_path(), encoding="utf-8").read())
+        con.executescript(open(schema_path(), encoding="utf-8").read())  # crea esquema (autocommit)
 
         existe = con.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
         if existe and not reset:
             raise SystemExit(
-                f"La base ya tiene {existe} clientes. Usa --reset para regenerar "
-                "(esto borra datos y predicciones).")
+                f"La base ya tiene {existe} clientes. Usa --reset para regenerar los "
+                "datos operacionales (conserva el historial de predicciones). Para "
+                "borrar tambien las predicciones agrega --reset-predicciones.")
+
+        # Transaccion explicita: defer_foreign_keys solo vale dentro de la transaccion
+        # y se apaga en cada commit, por eso se activa DESPUES de executescript (punto 1).
+        con.execute("BEGIN")
+        con.execute("PRAGMA defer_foreign_keys = ON")
+        if reset_predicciones:
+            con.execute("DELETE FROM predicciones")
         if reset:
-            for t in TABLAS:
+            for t in TABLAS_OPERACIONALES:
                 con.execute(f"DELETE FROM {t}")
 
         con.execute("INSERT INTO parametros (id, fecha_referencia) VALUES (1, ?)",
@@ -198,7 +236,20 @@ def poblar(db_path: str, n: int, exportar_csv: bool = False, reset: bool = False
                         " VALUES (?,?,?,?,?,?)", rec)
         con.executemany("INSERT INTO interacciones (id_cliente,fecha,canal,motivo,duracion_min)"
                         " VALUES (?,?,?,?,?)", inter)
-        con.commit()
+
+        validar_un_principal_por_cliente(con)  # punto 3
+
+        try:
+            con.execute("COMMIT")
+        except sqlite3.IntegrityError as e:
+            # defer_foreign_keys valida en el commit: si quedaron predicciones que
+            # referencian clientes ya inexistentes, el commit falla aqui (punto 1).
+            con.execute("ROLLBACK")
+            raise SystemExit(
+                "El commit fallo por integridad referencial: hay predicciones que "
+                "apuntan a clientes que ya no existen tras la regeneracion. Vuelve a "
+                "ejecutar agregando --reset-predicciones para limpiar el historial. "
+                f"(detalle: {e})")
 
         if exportar_csv:
             import csv
@@ -216,7 +267,10 @@ def poblar(db_path: str, n: int, exportar_csv: bool = False, reset: bool = False
         churn = con.execute("SELECT AVG(abandono)*100 FROM clientes").fetchone()[0]
         print(f"Clientes: {total} | Tasa de abandono: {churn:.1f}%")
     except Exception:
-        con.rollback()
+        try:
+            con.execute("ROLLBACK")  # revierte la transaccion si quedo abierta
+        except sqlite3.OperationalError:
+            pass  # no habia transaccion activa (p.ej. SystemExit antes del BEGIN)
         raise
     finally:
         con.close()
@@ -228,9 +282,11 @@ def main():
     ap.add_argument("--n", type=int, default=2500)
     ap.add_argument("--csv", action="store_true")
     ap.add_argument("--reset", action="store_true",
-                    help="borra datos y predicciones existentes antes de generar")
+                    help="regenera SOLO datos operacionales/sinteticos; conserva predicciones")
+    ap.add_argument("--reset-predicciones", dest="reset_predicciones", action="store_true",
+                    help="accion explicita: borra tambien el historial de la tabla predicciones")
     a = ap.parse_args()
-    poblar(a.db, a.n, a.csv, a.reset)
+    poblar(a.db, a.n, a.csv, a.reset, a.reset_predicciones)
 
 
 if __name__ == "__main__":

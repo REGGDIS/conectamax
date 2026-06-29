@@ -152,3 +152,13 @@ El perfil plano se genera primero; luego se expande a las tablas normalizadas pa
 1. ¿N = 2.500 o ceñirse a 2.000?
 2. ¿Pesos de los drivers (sección 3) y tasa objetivo de churn (20–35 %)?
 3. ¿Exportar también `clientes_generados.csv` para mantener compatibilidad con la carga actual por CSV?
+
+---
+
+## Ajustes revisión PR #6 — Ronda 2 (Raymond ↔ Roberto)
+
+**Punto 1 — `--reset` no borra el historial de predicciones.** `--reset` ahora limpia **solo** los datos operacionales/sintéticos (catálogo + clientes y sus tablas hijas), preservando la tabla `predicciones`. El borrado de predicciones es una acción separada y explícita mediante `--reset-predicciones`. Como `predicciones` referencia `clientes` por FK, durante el `--reset` se usa `PRAGMA defer_foreign_keys = ON`: las eliminaciones e inserciones ocurren dentro de la transacción y la integridad referencial se valida en el `commit`. Si se regenera con un `N` que deja predicciones huérfanas (clientes que ya no existen), el `commit` falla con un mensaje claro pidiendo `--reset-predicciones`.
+
+**Punto 3 — Validación "exactamente un contrato principal activo por cliente".** Tras construir las filas y antes del `commit`, el generador verifica que **cada** cliente tenga exactamente un contrato con `es_principal = 1 AND estado = 'activo'`. Si no se cumple, hace `rollback` y aborta. Cubierto por `test_exactamente_un_principal_por_cliente`.
+
+**No bloqueante — Segmento.** Se renombra el segmento `Clientes en Riesgo` a `Clientes Premium` para evitar que un nombre de segmento sugiera el target. (El segmento ya estaba excluido de las features del modelo; este cambio es de claridad conceptual.)

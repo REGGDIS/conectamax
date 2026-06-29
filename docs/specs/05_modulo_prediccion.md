@@ -92,3 +92,9 @@ def clasificar_riesgo(probabilidad: float) -> str:
 ```
 
 Anti-fuga: la tabla `predicciones` es solo salida; nunca se hace JOIN de `probabilidad_churn` hacia el entrenamiento.
+
+---
+
+## Ajustes revisión PR #6 — Ronda 2 (no bloqueante)
+
+**Invalidación de caché.** La vista de predicción usa `@st.cache_data`. Se añade una clave de invalidación basada en la **fecha de modificación (mtime) de la base de datos y del modelo**: si cambian `conectamax.db` o `modelo_churn.pkl`, la caché se recalcula automáticamente y la UI no muestra predicciones obsoletas.

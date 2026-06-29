@@ -31,9 +31,14 @@ from _paths import default_db, default_modelo
 
 SEED = 42
 TARGET = "abandono"
-# segmento se EXCLUYE (fuga conceptual por "Clientes en Riesgo"); id/nombre tampoco van.
-DROP = ["id_cliente", "nombre", "segmento", TARGET]
+# Lista EXPLICITA de variables predictoras (no bloqueante, ronda 2): documenta el
+# contrato del modelo y evita que columnas nuevas de la vista entren sin querer.
+# Se excluyen a proposito: id_cliente, nombre, segmento (fuga conceptual) y el target.
 CATEGORICAS = ["ciudad", "tipo_contrato", "plan", "region"]
+NUMERICAS = ["antiguedad_meses", "monto_mensual", "reclamos_ultimos_6_meses",
+             "pagos_atrasados", "dias_sin_uso", "satisfaccion", "edad",
+             "cantidad_servicios"]
+FEATURES = CATEGORICAS + NUMERICAS
 VERSION = "v1"
 
 
@@ -71,10 +76,13 @@ def evaluar(nombre, pipe, Xte, yte, base):
 
 def entrenar(db_path: str, out_path: str):
     df = cargar(db_path)
+    faltan = [c for c in FEATURES + [TARGET] if c not in df.columns]
+    if faltan:
+        raise ValueError(f"La vista no expone columnas requeridas: {faltan}")
     y = df[TARGET]
-    X = df.drop(columns=[c for c in DROP if c in df.columns])
-    categoricas = [c for c in CATEGORICAS if c in X.columns]
-    numericas = [c for c in X.columns if c not in categoricas]
+    X = df[FEATURES]  # seleccion explicita de predictoras
+    categoricas = list(CATEGORICAS)
+    numericas = list(NUMERICAS)
 
     X_tr, X_te, y_tr, y_te = train_test_split(
         X, y, test_size=0.2, random_state=SEED, stratify=y)

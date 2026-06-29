@@ -211,3 +211,11 @@ Para mantener coherencia, **generar primero el perfil plano** de cada cliente (d
 2. Pesos de los drivers del `abandono` sintético (Spec 02).
 3. Ubicación del modelo persistido: propuesta `models/modelo_churn.pkl` (Roberto aún no tiene carpeta `models/`).
 4. Momento de cambiar la fuente de datos de la app: de CSV/`session_state` a la vista `comportamiento_cliente` (Fase 7).
+
+---
+
+## Ajustes revisión PR #6 — Ronda 2 (Raymond ↔ Roberto)
+
+**Punto 2 — Ventana de 6 meses acotada por arriba.** Los agregados `reclamos_ultimos_6_meses` y `pagos_atrasados` de la vista `comportamiento_cliente` ahora se restringen al intervalo **`[fecha_referencia − 6 meses, fecha_referencia]`**. Antes solo tenían cota inferior, por lo que un registro con fecha futura respecto a `parametros.fecha_referencia` se habría contado. Se añade `AND fecha <= fecha_referencia` en ambos subselects.
+
+**Punto 3 — Exactamente un contrato principal activo por cliente.** El índice único parcial `ux_contrato_principal` solo garantiza **a lo sumo uno** (no permite duplicados), pero SQLite no puede exigir con un `CHECK` entre tablas que cada cliente tenga **al menos uno**. La regla "exactamente uno" se valida en el generador (`generate_data.py`) antes del `commit` y se cubre con una prueba dedicada. El índice se mantiene como salvaguarda de unicidad.

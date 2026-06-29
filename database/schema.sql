@@ -159,6 +159,7 @@ LEFT JOIN (
     SELECT id_cliente, COUNT(*) AS reclamos_ultimos_6_meses
     FROM reclamos
     WHERE fecha >= date((SELECT fecha_referencia FROM parametros WHERE id = 1), '-6 months')
+      AND fecha <= date((SELECT fecha_referencia FROM parametros WHERE id = 1))
     GROUP BY id_cliente
 ) r ON r.id_cliente = c.id_cliente
 LEFT JOIN (
@@ -167,5 +168,6 @@ LEFT JOIN (
     JOIN pagos pg ON pg.id_factura = f.id_factura
     WHERE pg.estado = 'atrasado'
       AND f.fecha_emision >= date((SELECT fecha_referencia FROM parametros WHERE id = 1), '-6 months')
+      AND f.fecha_emision <= date((SELECT fecha_referencia FROM parametros WHERE id = 1))
     GROUP BY f.id_cliente
 ) p ON p.id_cliente = c.id_cliente;

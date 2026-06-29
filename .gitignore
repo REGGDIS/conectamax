@@ -1,13 +1,25 @@
-venv/
-.venv/
+# Python
 __pycache__/
-*.pyc
-.env
-.pytest_cache/
-.streamlit/secrets.toml
-.engram/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Datos y modelos generados
+database/*.db
+database/*.sqlite
 data/*.db
-data/clientes_generados.csv
-models/
-docs/AVANCE_Y_PENDIENTES_RAYMOND.md
-docs/Aporte_Informe_BD_Modelo_Resultados.docx
+data/*.sqlite
+models/*.pkl
+models/*.joblib
+data/*.csv
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Sistema operativo / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
