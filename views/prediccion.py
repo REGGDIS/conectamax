@@ -78,6 +78,10 @@ def render():
         st.success(f"{n} predicciones registradas en la tabla `predicciones`.")
 
 
+def mostrar_prediccion():
+    render()
+
+
 # Permite ejecutar la vista de forma aislada: streamlit run views/prediccion.py
 if __name__ == "__main__":
     render()

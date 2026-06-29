@@ -7,6 +7,7 @@ from views.analisis_view import mostrar_analisis
 from views.carga_datos_view import mostrar_carga_datos
 from views.clientes_view import mostrar_clientes
 from views.dashboard_view import mostrar_dashboard
+from views.prediccion import mostrar_prediccion
 
 
 SESSION_DEFAULTS = {
@@ -75,7 +76,7 @@ def main() -> None:
     elif opcion == "Analisis":
         mostrar_analisis()
     elif opcion == "Prediccion":
-        mostrar_modulo_pendiente("Prediccion")
+        mostrar_prediccion()
 
 
 if __name__ == "__main__":
