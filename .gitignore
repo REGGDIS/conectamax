@@ -7,3 +7,4 @@ __pycache__/
 .streamlit/secrets.toml
 data/*.db
 data/clientes_generados.csv
+models/
