@@ -1,7 +1,25 @@
-venv/
-.venv/
+# Python
 __pycache__/
-*.pyc
-.env
-.pytest_cache/
-.streamlit/secrets.toml
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Datos y modelos generados
+database/*.db
+database/*.sqlite
+data/*.db
+data/*.sqlite
+models/*.pkl
+models/*.joblib
+data/*.csv
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Sistema operativo / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

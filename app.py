@@ -7,6 +7,7 @@ from views.analisis_view import mostrar_analisis
 from views.carga_datos_view import mostrar_carga_datos
 from views.clientes_view import mostrar_clientes
 from views.dashboard_view import mostrar_dashboard
+from views.prediccion import mostrar_prediccion
 
 
 SESSION_DEFAULTS = {
@@ -41,10 +42,11 @@ def mostrar_inicio() -> None:
     """Muestra la pantalla inicial de la fase actual."""
     st.title(APP_NAME)
     st.info(
-        "Fase funcional actual: carga de archivos CSV, validacion basica, "
-        "consulta de clientes, dashboard, analisis descriptivo y preparacion de datos."
+        "Modulos disponibles: carga de archivos CSV, validacion basica, "
+        "consulta de clientes, dashboard, analisis descriptivo, "
+        "preparacion de datos y Prediccion de churn."
     )
-    st.write("Prediccion se implementara en una fase posterior.")
+    st.success("El modulo Prediccion esta integrado. Accedelo desde el menu lateral.")
 
 
 def mostrar_modulo_pendiente(nombre: str) -> None:
@@ -75,7 +77,7 @@ def main() -> None:
     elif opcion == "Analisis":
         mostrar_analisis()
     elif opcion == "Prediccion":
-        mostrar_modulo_pendiente("Prediccion")
+        mostrar_prediccion()
 
 
 if __name__ == "__main__":
