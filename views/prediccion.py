@@ -43,6 +43,26 @@ def mostrar_prediccion():
     render()
 
 
+def calcular_porcentaje_riesgo_alto(pred: pd.DataFrame) -> float:
+    total = len(pred)
+    if total == 0 or "nivel_riesgo" not in pred.columns:
+        return 0.0
+    return float((pred["nivel_riesgo"] == "alto").sum() / total * 100)
+
+
+def calcular_probabilidad_promedio_churn(pred: pd.DataFrame) -> float:
+    if pred.empty or "probabilidad_churn" not in pred.columns:
+        return 0.0
+    probabilidades = pd.to_numeric(pred["probabilidad_churn"], errors="coerce").dropna()
+    if probabilidades.empty:
+        return 0.0
+    return float(probabilidades.mean() * 100)
+
+
+def formatear_porcentaje(valor: float | int) -> str:
+    return f"{float(valor):.2f} %".replace(".", ",")
+
+
 def render():
     st.title("Prediccion de churn")
     st.markdown(
@@ -99,6 +119,15 @@ def render():
     c2.metric("Riesgo alto", int((pred["nivel_riesgo"] == "alto").sum()))
     c3.metric("Riesgo medio", int((pred["nivel_riesgo"] == "medio").sum()))
     c4.metric("Riesgo bajo", int((pred["nivel_riesgo"] == "bajo").sum()))
+    c5, c6 = st.columns(2)
+    c5.metric(
+        "Porcentaje en riesgo alto",
+        formatear_porcentaje(calcular_porcentaje_riesgo_alto(pred)),
+    )
+    c6.metric(
+        "Probabilidad promedio de churn",
+        formatear_porcentaje(calcular_probabilidad_promedio_churn(pred)),
+    )
 
     dist = pred["nivel_riesgo"].value_counts().reindex(["bajo", "medio", "alto"]).reset_index()
     dist.columns = ["nivel_riesgo", "clientes"]
