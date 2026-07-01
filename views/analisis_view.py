@@ -11,20 +11,28 @@ from services.analisis_service import (
     calcular_reclamos_promedio_por_abandono,
     calcular_satisfaccion_promedio_por_abandono,
 )
+from services.fuente_datos_service import cargar_clientes_desde_sqlite
 
 
 def mostrar_analisis() -> None:
     """Renderiza tablas resumen y conclusiones descriptivas simples."""
     st.title("Análisis")
     st.write("Resumen descriptivo complementario al dashboard, sin inferencias causales.")
+    st.caption("Fuente de datos: vista `comportamiento_cliente` de SQLite.")
 
-    df = st.session_state.get("clientes_df")
-    if not st.session_state.get("datos_cargados") or df is None or df.empty:
-        st.info("No hay datos cargados para analizar.")
-        st.write("Ve al modulo `Carga de datos` y carga un CSV valido para continuar.")
+    try:
+        df = cargar_clientes_desde_sqlite()
+    except FileNotFoundError as exc:
+        st.warning(str(exc))
+        return
+    except RuntimeError as exc:
+        st.error(str(exc))
         return
 
-    st.write(f"Archivo activo: `{st.session_state.get('nombre_archivo_activo', 'No informado')}`")
+    if df.empty:
+        st.info("La base de datos no contiene clientes disponibles para analizar.")
+        return
+
     st.write(f"Clientes analizados: `{len(df)}`")
 
     resumen_contrato = calcular_abandono_por_categoria(df, "tipo_contrato")
