@@ -1,4 +1,4 @@
-"""Vista de consulta de clientes cargados en sesion."""
+"""Vista de consulta de clientes almacenados en SQLite."""
 
 from typing import Any
 
@@ -15,6 +15,7 @@ from services.cliente_service import (
     ordenar_clientes,
     preparar_tabla_clientes,
 )
+from services.fuente_datos_service import cargar_clientes_desde_sqlite
 
 
 ABANDONO_OPCIONES = {
@@ -27,15 +28,22 @@ ABANDONO_OPCIONES = {
 def mostrar_clientes() -> None:
     """Renderiza busqueda, filtros, resultados y ficha de clientes."""
     st.title("Clientes")
-    st.write("Consulta clientes cargados desde el DataFrame activo de la sesion.")
+    st.write("Consulta clientes almacenados en la base de datos SQLite.")
+    st.caption("Fuente de datos: vista `comportamiento_cliente` de SQLite.")
 
-    df = st.session_state.get("clientes_df")
-    if not st.session_state.get("datos_cargados") or df is None or df.empty:
-        st.info("No hay datos de clientes cargados.")
-        st.write("Ve al modulo `Carga de datos` y carga un CSV valido para usar esta vista.")
+    try:
+        df = cargar_clientes_desde_sqlite()
+    except FileNotFoundError as exc:
+        st.warning(str(exc))
+        return
+    except RuntimeError as exc:
+        st.error(str(exc))
         return
 
-    st.write(f"Archivo activo: `{st.session_state.get('nombre_archivo_activo', 'No informado')}`")
+    if df.empty:
+        st.info("La base de datos no contiene clientes disponibles.")
+        return
+
     st.metric("Total de clientes disponibles", len(df))
 
     termino = st.text_input("Buscar por ID o nombre", placeholder="Ejemplo: CXM0001 o Ana")
@@ -115,6 +123,7 @@ def _renderizar_ficha(cliente: dict[str, Any]) -> None:
         ("Nombre", cliente.get("nombre")),
         ("Edad", cliente.get("edad")),
         ("Ciudad", cliente.get("ciudad")),
+        ("Región", cliente.get("region")),
         ("Antiguedad en meses", cliente.get("antiguedad_meses")),
         ("Tipo de contrato", cliente.get("tipo_contrato")),
         ("Plan", cliente.get("plan")),

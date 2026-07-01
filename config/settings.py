@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 CSV_EJEMPLO_PATH = DATA_DIR / "clientes_simulados.csv"
 DATABASE_PATH = DATA_DIR / "conectamax.db"
+VISTA_COMPORTAMIENTO_CLIENTE = "comportamiento_cliente"
 
 ID_COLUMN = "id_cliente"
 TARGET_COLUMN = "abandono"

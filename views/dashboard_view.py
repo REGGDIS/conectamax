@@ -16,20 +16,28 @@ from services.analisis_service import (
     contar_por_abandono,
     obtener_opciones_filtro_analisis,
 )
+from services.fuente_datos_service import cargar_clientes_desde_sqlite
 
 
 def mostrar_dashboard() -> None:
     """Renderiza indicadores, filtros y graficos descriptivos."""
     st.title("Dashboard")
     st.write("Panel descriptivo para revisar patrones generales asociados al abandono de clientes.")
+    st.caption("Fuente de datos: vista `comportamiento_cliente` de SQLite.")
 
-    df = st.session_state.get("clientes_df")
-    if not st.session_state.get("datos_cargados") or df is None or df.empty:
-        st.info("No hay datos cargados para construir el dashboard.")
-        st.write("Ve al modulo `Carga de datos` y carga un CSV valido para continuar.")
+    try:
+        df = cargar_clientes_desde_sqlite()
+    except FileNotFoundError as exc:
+        st.warning(str(exc))
+        return
+    except RuntimeError as exc:
+        st.error(str(exc))
         return
 
-    st.write(f"Archivo activo: `{st.session_state.get('nombre_archivo_activo', 'No informado')}`")
+    if df.empty:
+        st.info("La base de datos no contiene clientes disponibles para construir el dashboard.")
+        return
+
     st.write(f"Clientes disponibles antes de filtros: `{len(df)}`")
 
     filtrado = _mostrar_filtros(df)
