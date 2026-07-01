@@ -3,6 +3,7 @@
 import streamlit as st
 
 from config.settings import APP_NAME
+from utils.ui_helpers import msg_info
 from views.analisis_view import mostrar_analisis
 from views.carga_datos_view import mostrar_carga_datos
 from views.clientes_view import mostrar_clientes
@@ -39,14 +40,33 @@ def limpiar_datos_sesion() -> None:
 
 
 def mostrar_inicio() -> None:
-    """Muestra la pantalla inicial de la fase actual."""
+    """Muestra la pantalla de bienvenida con descripcion y orientacion al usuario."""
     st.title(APP_NAME)
-    st.info(
-        "Modulos disponibles: carga de archivos CSV, validacion basica, "
-        "consulta de clientes, dashboard, analisis descriptivo, "
-        "preparacion de datos y Prediccion de churn."
+    st.markdown(
+        "CRM analitico academico para **ConectaMax Telecom S.A.** "
+        "Centraliza la informacion de clientes y predice el riesgo de abandono (churn) "
+        "usando un modelo de arbol de decision entrenado sobre datos sinteticos."
     )
-    st.success("El modulo Prediccion esta integrado. Accedelo desde el menu lateral.")
+
+    st.subheader("Modulos disponibles")
+    col_izq, col_der = st.columns(2)
+    with col_izq:
+        st.markdown("- **Carga de datos** — importa y valida un CSV de clientes.")
+        st.markdown("- **Clientes** — lista, busca y filtra clientes; ficha individual.")
+        st.markdown("- **Dashboard** — KPIs e indicadores clave del negocio.")
+    with col_der:
+        st.markdown("- **Analisis** — tablas resumen y conclusiones descriptivas.")
+        st.markdown("- **Prediccion** — probabilidad de churn y nivel de riesgo por cliente.")
+
+    msg_info(
+        "Por donde empezar",
+        causa="Los datos sinteticos ya estan cargados en la base de datos local (SQLite).",
+        accion=(
+            "Explora **Clientes** o **Dashboard** para ver la informacion existente. "
+            "Si tienes un CSV propio, empieza por **Carga de datos**. "
+            "Para ver las predicciones de abandono, accede a **Prediccion**."
+        ),
+    )
 
 
 def mostrar_modulo_pendiente(nombre: str) -> None:

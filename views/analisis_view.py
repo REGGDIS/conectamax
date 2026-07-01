@@ -12,35 +12,54 @@ from services.analisis_service import (
     calcular_satisfaccion_promedio_por_abandono,
 )
 from services.fuente_datos_service import cargar_clientes_desde_sqlite
+from utils.ui_helpers import msg_advertencia, msg_error, msg_info
 
 
 def mostrar_analisis() -> None:
     """Renderiza tablas resumen y conclusiones descriptivas simples."""
-    st.title("Análisis")
-    st.write("Resumen descriptivo complementario al dashboard, sin inferencias causales.")
+    st.title("Analisis")
+    st.markdown(
+        "Tablas resumen y conclusiones descriptivas por contrato, ciudad y plan. "
+        "Complementa el Dashboard con detalle por categoria. "
+        "Los resultados describen patrones observados, sin inferencias causales."
+    )
     st.caption("Fuente de datos: vista `comportamiento_cliente` de SQLite.")
 
     try:
         df = cargar_clientes_desde_sqlite()
     except FileNotFoundError as exc:
-        st.warning(str(exc))
+        msg_advertencia(
+            "No se encontro la base de datos.",
+            causa=str(exc),
+            accion="Ejecuta `python scripts/init_db.py` y `python scripts/generate_data.py` para crearla.",
+        )
         return
     except RuntimeError as exc:
-        st.error(str(exc))
+        msg_error(
+            "No se pudieron cargar los datos para el analisis.",
+            causa=str(exc),
+            accion="Verifica que la base de datos sea valida y vuelve a intentarlo.",
+        )
         return
 
     if df.empty:
-        st.info("La base de datos no contiene clientes disponibles para analizar.")
+        msg_info(
+            "No hay datos disponibles para analizar.",
+            causa="La tabla de clientes esta vacia.",
+            accion="Ejecuta `python scripts/generate_data.py --n 2500` para generar datos sinteticos.",
+        )
         return
 
-    st.write(f"Clientes analizados: `{len(df)}`")
+    st.caption(f"Clientes analizados: {len(df):,}".replace(",", "."))
 
     resumen_contrato = calcular_abandono_por_categoria(df, "tipo_contrato")
     resumen_ciudad = calcular_abandono_por_categoria(df, "ciudad")
     resumen_plan = calcular_abandono_por_categoria(df, "plan")
 
     _mostrar_tablas(resumen_contrato, resumen_ciudad, resumen_plan)
+    st.divider()
     _mostrar_comparacion_metricas(df)
+    st.divider()
     _mostrar_conclusiones(resumen_contrato, resumen_ciudad, resumen_plan, df)
 
 
@@ -50,30 +69,33 @@ def _mostrar_tablas(
     resumen_plan: pd.DataFrame,
 ) -> None:
     """Muestra tablas resumen por categorias principales."""
-    st.subheader("Tablas resumen")
+    st.subheader("Tasas de abandono por categoria")
     col_1, col_2, col_3 = st.columns(3)
     with col_1:
-        st.write("Por tipo de contrato")
+        st.caption("Por tipo de contrato")
         _mostrar_tabla_resumen(resumen_contrato, "tipo_contrato")
     with col_2:
-        st.write("Por ciudad")
+        st.caption("Por ciudad")
         _mostrar_tabla_resumen(resumen_ciudad, "ciudad")
     with col_3:
-        st.write("Por plan")
+        st.caption("Por plan")
         _mostrar_tabla_resumen(resumen_plan, "plan")
 
 
 def _mostrar_tabla_resumen(df: pd.DataFrame, columna: str) -> None:
     """Muestra una tabla con nombres legibles."""
     if df.empty:
-        st.info("Sin datos suficientes.")
+        msg_info(
+            "Sin datos para esta categoria.",
+            accion="Verifica que la base de datos tenga clientes con esta columna completa.",
+        )
         return
 
     tabla = df.rename(
         columns={
             columna: ETIQUETAS_COLUMNAS_ANALISIS.get(columna, columna),
             "total_clientes": "Total clientes",
-            "clientes_abandonaron": "Clientes abandonaron",
+            "clientes_abandonaron": "Abandonaron",
             "tasa_abandono": "Tasa abandono (%)",
         }
     )
@@ -82,26 +104,33 @@ def _mostrar_tabla_resumen(df: pd.DataFrame, columna: str) -> None:
 
 def _mostrar_comparacion_metricas(df: pd.DataFrame) -> None:
     """Muestra comparacion de metricas promedio por estado de abandono."""
-    st.subheader("Comparación por estado de abandono")
+    st.subheader("Comparacion de metricas por estado de abandono")
+    st.markdown(
+        "Promedios de satisfaccion, reclamos, pagos atrasados y dias sin uso "
+        "separados entre clientes que permanecen y clientes que abandonaron."
+    )
     tablas = [
-        ("Satisfacción", calcular_satisfaccion_promedio_por_abandono(df)),
-        ("Reclamos últimos 6 meses", calcular_reclamos_promedio_por_abandono(df)),
+        ("Satisfaccion (1-5)", calcular_satisfaccion_promedio_por_abandono(df)),
+        ("Reclamos ultimos 6 meses", calcular_reclamos_promedio_por_abandono(df)),
         ("Pagos atrasados", calcular_pagos_atrasados_promedio_por_abandono(df)),
-        ("Días sin uso", calcular_dias_sin_uso_promedio_por_abandono(df)),
+        ("Dias sin uso", calcular_dias_sin_uso_promedio_por_abandono(df)),
     ]
     resumen = []
     for metrica, datos in tablas:
         for fila in datos.to_dict("records"):
             resumen.append(
                 {
-                    "Métrica": metrica,
+                    "Metrica": metrica,
                     "Estado": fila.get("estado_abandono"),
-                    "Promedio": fila.get("promedio"),
+                    "Promedio": round(float(fila.get("promedio", 0)), 2),
                 }
             )
 
     if not resumen:
-        st.info("No hay datos suficientes para comparar metricas por abandono.")
+        msg_info(
+            "No hay datos suficientes para comparar metricas por abandono.",
+            accion="Verifica que la base de datos contenga clientes en ambos estados (0 y 1).",
+        )
         return
 
     st.dataframe(pd.DataFrame(resumen), use_container_width=True, hide_index=True)
@@ -115,20 +144,27 @@ def _mostrar_conclusiones(
 ) -> None:
     """Muestra conclusiones descriptivas automaticas simples."""
     st.subheader("Conclusiones descriptivas")
+    st.markdown(
+        "Observaciones automaticas basadas en los datos. "
+        "Describen patrones presentes en la muestra, no relaciones causales."
+    )
     conclusiones = []
 
     conclusiones.extend(_conclusion_mayor_tasa(resumen_contrato, "tipo_contrato", "contrato"))
     conclusiones.extend(_conclusion_mayor_tasa(resumen_ciudad, "ciudad", "ciudad"))
     conclusiones.extend(_conclusion_mayor_tasa(resumen_plan, "plan", "plan"))
-    conclusiones.extend(_conclusion_diferencia(df, "satisfaccion", "satisfacción promedio"))
+    conclusiones.extend(_conclusion_diferencia(df, "satisfaccion", "satisfaccion promedio"))
     conclusiones.extend(_conclusion_diferencia(df, "reclamos_ultimos_6_meses", "reclamos promedio"))
 
     if not conclusiones:
-        st.info("No hay datos suficientes para generar conclusiones descriptivas.")
+        msg_info(
+            "No hay datos suficientes para generar conclusiones descriptivas.",
+            accion="Verifica que la base de datos tenga clientes con valores validos en las columnas clave.",
+        )
         return
 
     for conclusion in conclusiones:
-        st.write(f"- {conclusion}")
+        st.markdown(f"- {conclusion}")
 
 
 def _conclusion_mayor_tasa(df: pd.DataFrame, columna: str, etiqueta: str) -> list[str]:
@@ -161,7 +197,7 @@ def _conclusion_diferencia(df: pd.DataFrame, columna: str, etiqueta: str) -> lis
 
     diferencia = promedios[1] - promedios[0]
     return [
-        "Este resultado sugiere una asociación descriptiva: la diferencia de "
+        "Este resultado sugiere una asociacion descriptiva: la diferencia de "
         f"{etiqueta} entre quienes abandonaron y quienes permanecen es "
         f"{diferencia:.2f} puntos."
     ]

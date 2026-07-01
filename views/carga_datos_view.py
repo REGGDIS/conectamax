@@ -4,18 +4,32 @@ from collections.abc import Callable
 
 import streamlit as st
 
-from config.settings import CSV_EJEMPLO_PATH
+from config.settings import COLUMNAS_OBLIGATORIAS, COLUMNAS_OPCIONALES, CSV_EJEMPLO_PATH
 from services.carga_datos_service import cargar_y_validar_csv, construir_estado_carga
 from services.limpieza_service import preparar_datos
+from utils.ui_helpers import msg_error, msg_exito, msg_info
 
 
 def mostrar_carga_datos(limpiar_datos_sesion: Callable[[], None]) -> None:
     """Renderiza la vista de carga sin definir reglas de validacion."""
     st.title("Carga de datos")
-    st.write(
-        "Carga un archivo CSV con el contrato provisional de clientes o usa "
-        "el archivo simulado incluido en el proyecto."
+    st.markdown(
+        "Importa un archivo CSV de clientes para explorarlos en los modulos "
+        "**Clientes**, **Dashboard** y **Analisis**. "
+        "El modulo **Prediccion** usa siempre la base de datos SQLite, "
+        "independientemente del CSV que cargues aqui."
     )
+
+    with st.expander("Ver formato CSV esperado"):
+        st.markdown("**Columnas obligatorias** (el archivo debe contenerlas todas):")
+        st.code(", ".join(COLUMNAS_OBLIGATORIAS))
+        st.markdown("**Columnas opcionales** (se usan si estan presentes):")
+        st.code(", ".join(COLUMNAS_OPCIONALES))
+        st.markdown(
+            "- La columna `abandono` acepta solo los valores `0` (permanece) o `1` (abandono).  \n"
+            "- La columna `satisfaccion` debe estar en el rango 1–5.  \n"
+            "- Puedes usar el archivo simulado incluido como referencia de formato."
+        )
 
     col_simulado, col_limpiar = st.columns(2)
     with col_simulado:
@@ -24,7 +38,7 @@ def mostrar_carga_datos(limpiar_datos_sesion: Callable[[], None]) -> None:
     with col_limpiar:
         if st.button("Limpiar datos de la sesion"):
             limpiar_datos_sesion()
-            st.success("Datos de sesion eliminados.")
+            msg_exito("Datos de sesion eliminados.", accion="Puedes cargar un nuevo archivo cuando quieras.")
 
     uploader_key = f"archivo_csv_{st.session_state.get('uploader_reset_counter', 0)}"
     archivo = st.file_uploader("Selecciona un archivo CSV", type=["csv"], key=uploader_key)
@@ -37,16 +51,25 @@ def mostrar_carga_datos(limpiar_datos_sesion: Callable[[], None]) -> None:
 
 def _procesar_archivo(archivo, nombre_archivo: str) -> None:
     """Carga, valida y actualiza session_state sin reemplazar datos validos por invalidos."""
-    df, resultado = cargar_y_validar_csv(archivo)
-    estado_actualizado = construir_estado_carga(st.session_state.to_dict(), df, resultado, nombre_archivo)
+    with st.spinner(f"Procesando '{nombre_archivo}'..."):
+        df, resultado = cargar_y_validar_csv(archivo)
+        estado_actualizado = construir_estado_carga(st.session_state.to_dict(), df, resultado, nombre_archivo)
     for clave, valor in estado_actualizado.items():
         st.session_state[clave] = valor
 
     if resultado["es_valido"] and df is not None:
-        st.success("Archivo cargado y validado correctamente.")
+        filas = resultado.get("resumen", {}).get("filas", len(df))
+        columnas = resultado.get("resumen", {}).get("columnas", len(df.columns))
+        msg_exito(
+            f"'{nombre_archivo}' cargado correctamente.",
+            causa=f"{filas} filas · {columnas} columnas detectadas.",
+            accion="Explora la vista previa a continuacion o pasa a 'Preparacion avanzada' para limpiar los datos.",
+        )
     else:
-        st.error(
-            "El archivo tiene errores estructurales. Los datos activos validos anteriores se conservaron."
+        msg_error(
+            f"'{nombre_archivo}' no se pudo cargar.",
+            causa="El archivo tiene errores estructurales que impiden su uso.",
+            accion="Revisa los errores detallados a continuacion, corrige el archivo y vuelve a cargarlo. Los datos validos cargados anteriormente se conservan.",
         )
 
 
@@ -61,7 +84,10 @@ def _mostrar_estado_actual() -> None:
             f"Ultimo archivo procesado: `{st.session_state['ultimo_archivo_procesado']}`"
         )
     else:
-        st.info("Aun no hay archivos procesados.")
+        msg_info(
+            "Aun no hay archivos procesados.",
+            accion="Usa el boton 'Usar CSV simulado' o carga tu propio archivo .csv.",
+        )
 
     if st.session_state.get("nombre_archivo_activo"):
         st.write(f"Archivo activo: `{st.session_state['nombre_archivo_activo']}`")
@@ -84,24 +110,37 @@ def _mostrar_estado_actual() -> None:
         st.write(f"Columnas: `{len(df.columns)}`")
         st.dataframe(df.head(), use_container_width=True)
     else:
-        st.info("No hay un DataFrame valido cargado en la sesion.")
+        msg_info(
+            "No hay datos cargados en la sesion.",
+            causa="Aun no se ha procesado ningun archivo CSV valido.",
+            accion="Carga un archivo CSV usando los controles de arriba.",
+        )
 
 
 def _mostrar_preparacion_avanzada() -> None:
     """Permite ejecutar limpieza avanzada sin modificar el dataset original."""
-    st.subheader("Preparación avanzada")
+    st.subheader("Preparacion avanzada")
     df = st.session_state.get("clientes_df")
     if not st.session_state.get("datos_cargados") or df is None or df.empty:
-        st.info("Carga un CSV valido antes de preparar los datos.")
+        msg_info(
+            "No hay datos listos para preparar.",
+            causa="La preparacion avanzada requiere un archivo CSV valido ya cargado.",
+            accion="Primero carga y valida un archivo CSV en la seccion superior.",
+        )
         return
 
     st.write("El dataset original cargado se conservara sin modificaciones.")
     if st.button("Preparar datos"):
-        df_limpio, reporte = preparar_datos(df)
+        with st.spinner("Aplicando limpieza y generando variables derivadas..."):
+            df_limpio, reporte = preparar_datos(df)
         st.session_state["clientes_df_limpio"] = df_limpio
         st.session_state["reporte_limpieza"] = reporte
         st.session_state["datos_preparados"] = True
-        st.success("Datos preparados correctamente.")
+        msg_exito(
+            "Datos preparados correctamente.",
+            causa=f"{reporte.get('filas_finales', len(df_limpio))} filas utiles tras la limpieza.",
+            accion="Revisa el reporte a continuacion y descarga el CSV limpio si lo necesitas.",
+        )
 
     reporte = st.session_state.get("reporte_limpieza")
     df_limpio = st.session_state.get("clientes_df_limpio")
@@ -160,7 +199,7 @@ def _mostrar_lista(titulo: str, items: list[str], tipo: str) -> None:
     """Muestra una lista de mensajes usando componentes de Streamlit."""
     st.subheader(titulo)
     if not items:
-        st.write("Sin registros.")
+        st.write("Sin problemas detectados.")
         return
 
     for item in items:
