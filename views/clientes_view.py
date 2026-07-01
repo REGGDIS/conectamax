@@ -16,6 +16,7 @@ from services.cliente_service import (
     preparar_tabla_clientes,
 )
 from services.fuente_datos_service import cargar_clientes_desde_sqlite
+from utils.ui_helpers import msg_advertencia, msg_error, msg_info
 
 
 ABANDONO_OPCIONES = {
@@ -28,32 +29,56 @@ ABANDONO_OPCIONES = {
 def mostrar_clientes() -> None:
     """Renderiza busqueda, filtros, resultados y ficha de clientes."""
     st.title("Clientes")
-    st.write("Consulta clientes almacenados en la base de datos SQLite.")
+    st.markdown(
+        "Consulta, busca y filtra los clientes almacenados en la base de datos. "
+        "Selecciona un cliente de la tabla para ver su ficha completa."
+    )
     st.caption("Fuente de datos: vista `comportamiento_cliente` de SQLite.")
 
     try:
         df = cargar_clientes_desde_sqlite()
     except FileNotFoundError as exc:
-        st.warning(str(exc))
+        msg_advertencia(
+            "No se encontro la base de datos.",
+            causa=str(exc),
+            accion="Ejecuta `python scripts/init_db.py` y `python scripts/generate_data.py` para crearla.",
+        )
         return
     except RuntimeError as exc:
-        st.error(str(exc))
+        msg_error(
+            "No se pudieron cargar los clientes.",
+            causa=str(exc),
+            accion="Verifica que la base de datos sea valida y vuelve a intentarlo.",
+        )
         return
 
     if df.empty:
-        st.info("La base de datos no contiene clientes disponibles.")
+        msg_info(
+            "La base de datos no contiene clientes.",
+            causa="La tabla de clientes esta vacia.",
+            accion="Ejecuta `python scripts/generate_data.py --n 2500` para generar datos sinteticos.",
+        )
         return
 
     st.metric("Total de clientes disponibles", len(df))
 
+    st.subheader("Busqueda y filtros")
     termino = st.text_input("Buscar por ID o nombre", placeholder="Ejemplo: CXM0001 o Ana")
-    ciudades = st.multiselect("Ciudad", obtener_opciones_filtro(df, "ciudad"))
-    tipos_contrato = st.multiselect(
-        "Tipo de contrato",
-        obtener_opciones_filtro(df, "tipo_contrato"),
-    )
-    planes = st.multiselect("Plan", obtener_opciones_filtro(df, "plan"))
-    abandono_label = st.selectbox("Estado de abandono", list(ABANDONO_OPCIONES.keys()))
+
+    col_ciudad, col_contrato = st.columns(2)
+    with col_ciudad:
+        ciudades = st.multiselect("Ciudad", obtener_opciones_filtro(df, "ciudad"))
+    with col_contrato:
+        tipos_contrato = st.multiselect(
+            "Tipo de contrato",
+            obtener_opciones_filtro(df, "tipo_contrato"),
+        )
+
+    col_plan, col_abandono = st.columns(2)
+    with col_plan:
+        planes = st.multiselect("Plan", obtener_opciones_filtro(df, "plan"))
+    with col_abandono:
+        abandono_label = st.selectbox("Estado de abandono", list(ABANDONO_OPCIONES.keys()))
 
     col_orden, col_sentido = st.columns(2)
     with col_orden:
@@ -75,6 +100,7 @@ def mostrar_clientes() -> None:
         ascendente=sentido == "Ascendente",
     )
 
+    st.divider()
     _mostrar_resultados(resultados)
     _mostrar_ficha_cliente(df, resultados)
 
@@ -83,10 +109,14 @@ def _mostrar_resultados(resultados: pd.DataFrame) -> None:
     """Muestra cantidad y tabla de resultados."""
     st.subheader("Resultados")
     total = contar_resultados(resultados)
-    st.write(f"Clientes encontrados: `{total}`")
+    st.metric("Clientes encontrados", total)
 
     if total == 0:
-        st.warning("No hay clientes que coincidan con la busqueda y filtros seleccionados.")
+        msg_advertencia(
+            "No hay clientes que coincidan con los filtros aplicados.",
+            causa="Ningun registro cumple la combinacion de busqueda, ciudad, contrato, plan y estado seleccionados.",
+            accion="Amplia o limpia los filtros para ver mas resultados.",
+        )
         return
 
     tabla = preparar_tabla_clientes(resultados, COLUMNAS_CLIENTES_TABLA)
@@ -105,7 +135,11 @@ def _mostrar_ficha_cliente(df: pd.DataFrame, resultados: pd.DataFrame) -> None:
     cliente = obtener_cliente_por_id(df, id_cliente)
 
     if cliente is None:
-        st.warning("No fue posible recuperar el cliente seleccionado.")
+        msg_advertencia(
+            "No fue posible recuperar el cliente seleccionado.",
+            causa=f"El ID '{id_cliente}' no se encontro en el DataFrame activo.",
+            accion="Recarga la pagina o ajusta los filtros e intentalo de nuevo.",
+        )
         return
 
     _renderizar_ficha(cliente)
