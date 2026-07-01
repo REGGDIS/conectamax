@@ -14,9 +14,11 @@ def mostrar_carga_datos(limpiar_datos_sesion: Callable[[], None]) -> None:
     """Renderiza la vista de carga sin definir reglas de validacion."""
     st.title("Carga de datos")
     st.markdown(
-        "Importa un archivo CSV de clientes para explorarlos en los modulos "
-        "**Clientes**, **Dashboard** y **Analisis**. "
-        "El modulo **Prediccion** usa siempre la base de datos SQLite, "
+        "Importa un archivo CSV de clientes para validarlo, revisar su calidad, "
+        "limpiarlo y preparar una version lista para descargar. "
+        "Los modulos **Clientes**, **Dashboard** y **Analisis** utilizan la base "
+        "de datos SQLite mediante la vista `comportamiento_cliente`. "
+        "El modulo **Prediccion** tambien utiliza SQLite y el modelo entrenado, "
         "independientemente del CSV que cargues aqui."
     )
 
