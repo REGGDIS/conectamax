@@ -23,6 +23,17 @@ COLORES_CLUSTER = {
     "Clúster 3": "#f2b84b",
 }
 
+COLORES_ABANDONO = {"Permanece": "#2ecc71", "Abandonó": "#e74c3c"}
+
+VARIABLES_BOXPLOT = {
+    "satisfaccion": "Satisfacción",
+    "reclamos_ultimos_6_meses": "Reclamos en los últimos 6 meses",
+    "pagos_atrasados": "Pagos atrasados",
+    "dias_sin_uso": "Días sin uso",
+    "monto_mensual": "Monto mensual",
+    "antiguedad_meses": "Antigüedad en meses",
+}
+
 ETIQUETAS_COLUMNAS_SEGMENTACION = {
     "cluster": "Clúster",
     "total_clientes": "Total clientes",
@@ -82,6 +93,8 @@ def mostrar_analisis() -> None:
     _mostrar_tablas(resumen_contrato, resumen_ciudad, resumen_plan)
     st.divider()
     _mostrar_comparacion_metricas(df)
+    st.divider()
+    _mostrar_distribucion_boxplot(df)
     st.divider()
     _mostrar_conclusiones(resumen_contrato, resumen_ciudad, resumen_plan, df)
     st.divider()
@@ -159,6 +172,80 @@ def _mostrar_comparacion_metricas(df: pd.DataFrame) -> None:
         return
 
     st.dataframe(pd.DataFrame(resumen), use_container_width=True, hide_index=True)
+
+
+def _mostrar_distribucion_boxplot(df: pd.DataFrame) -> None:
+    """Muestra boxplot dinamico de variables segun estado de abandono."""
+    st.subheader("Distribución de variables según estado de abandono")
+    st.markdown(
+        "Este gráfico compara clientes que permanecen y clientes que abandonaron. "
+        "La línea central representa la mediana, la caja contiene el 50 % central "
+        "de los datos y los puntos fuera de los bigotes pueden representar valores "
+        "atípicos. Las diferencias observadas son descriptivas y no implican causalidad."
+    )
+
+    variable = st.selectbox(
+        "Variable a comparar",
+        list(VARIABLES_BOXPLOT.keys()),
+        format_func=formatear_etiqueta_variable,
+    )
+
+    try:
+        datos = preparar_datos_boxplot(df, variable)
+    except ValueError as exc:
+        msg_advertencia(
+            "No fue posible construir el gráfico de caja.",
+            causa=str(exc),
+            accion="Verifica que la base de datos contenga la variable seleccionada y la columna `abandono`.",
+        )
+        return
+
+    if datos.empty or datos["estado_abandono"].nunique() < 2:
+        msg_info(
+            "No hay datos suficientes para comparar la distribución por estado de abandono.",
+            accion="Selecciona otra variable o verifica que existan valores validos para ambos estados.",
+        )
+        return
+
+    etiqueta = formatear_etiqueta_variable(variable)
+    fig = px.box(
+        datos,
+        x="estado_abandono",
+        y=variable,
+        color="estado_abandono",
+        points="outliers",
+        color_discrete_map=COLORES_ABANDONO,
+        title=f"Distribución de {etiqueta} según estado de abandono",
+        labels={"estado_abandono": "Estado de abandono", variable: etiqueta},
+    )
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def preparar_datos_boxplot(df: pd.DataFrame | None, variable: str) -> pd.DataFrame:
+    """Prepara datos numericos para comparar distribuciones por abandono."""
+    columnas_resultado = ["estado_abandono", variable]
+    if variable not in VARIABLES_BOXPLOT:
+        raise ValueError(f"La variable seleccionada no esta permitida: {variable}")
+    if df is None or df.empty:
+        return pd.DataFrame(columns=columnas_resultado)
+    if variable not in df.columns:
+        raise ValueError(f"La base de datos no contiene la variable seleccionada: {variable}")
+    if "abandono" not in df.columns:
+        raise ValueError("La base de datos no contiene la columna requerida: abandono")
+
+    datos = df.loc[:, [variable, "abandono"]].copy(deep=True)
+    datos[variable] = pd.to_numeric(datos[variable], errors="coerce")
+    datos["abandono"] = pd.to_numeric(datos["abandono"], errors="coerce")
+    datos = datos.dropna(subset=[variable, "abandono"])
+    datos = datos[datos["abandono"].isin([0, 1])].copy()
+    datos["estado_abandono"] = datos["abandono"].map({0: "Permanece", 1: "Abandonó"})
+    return datos.loc[:, columnas_resultado].reset_index(drop=True)
+
+
+def formatear_etiqueta_variable(variable: str) -> str:
+    """Devuelve una etiqueta legible para variables del boxplot."""
+    return VARIABLES_BOXPLOT.get(variable, variable)
 
 
 def _mostrar_conclusiones(
