@@ -1,6 +1,7 @@
 """Vista complementaria de analisis descriptivo."""
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from config.settings import ETIQUETAS_COLUMNAS_ANALISIS
@@ -12,7 +13,29 @@ from services.analisis_service import (
     calcular_satisfaccion_promedio_por_abandono,
 )
 from services.fuente_datos_service import cargar_clientes_desde_sqlite
+from services.segmentacion_service import COLUMNAS_SEGMENTACION, segmentar_clientes_kmeans
 from utils.ui_helpers import msg_advertencia, msg_error, msg_info
+
+
+COLORES_CLUSTER = {
+    "Clúster 1": "#5b8dee",
+    "Clúster 2": "#55c2a5",
+    "Clúster 3": "#f2b84b",
+}
+
+ETIQUETAS_COLUMNAS_SEGMENTACION = {
+    "cluster": "Clúster",
+    "total_clientes": "Total clientes",
+    "clientes_abandonaron": "Clientes abandonaron",
+    "tasa_abandono": "Tasa abandono",
+    "antiguedad_meses": "Antigüedad meses",
+    "monto_mensual": "Monto mensual",
+    "cantidad_servicios": "Cantidad servicios",
+    "reclamos_ultimos_6_meses": "Reclamos últimos 6 meses",
+    "pagos_atrasados": "Pagos atrasados",
+    "dias_sin_uso": "Días sin uso",
+    "satisfaccion": "Satisfacción",
+}
 
 
 def mostrar_analisis() -> None:
@@ -61,6 +84,8 @@ def mostrar_analisis() -> None:
     _mostrar_comparacion_metricas(df)
     st.divider()
     _mostrar_conclusiones(resumen_contrato, resumen_ciudad, resumen_plan, df)
+    st.divider()
+    _mostrar_segmentacion_kmeans(df)
 
 
 def _mostrar_tablas(
@@ -201,3 +226,158 @@ def _conclusion_diferencia(df: pd.DataFrame, columna: str, etiqueta: str) -> lis
         f"{etiqueta} entre quienes abandonaron y quienes permanecen es "
         f"{diferencia:.2f} puntos."
     ]
+
+
+def _mostrar_segmentacion_kmeans(df: pd.DataFrame) -> None:
+    """Muestra segmentacion no supervisada de clientes mediante K-Means."""
+    st.subheader("Segmentación de clientes con K-Means")
+    st.markdown(
+        "K-Means agrupa clientes con patrones numéricos similares mediante una "
+        "técnica no supervisada. Los clústeres no son categorías comerciales "
+        "definitivas y su número no implica mayor o menor riesgo. La variable "
+        "`abandono` no se usa para formar los grupos; solo se utiliza después "
+        "para describir la tasa observada en cada clúster."
+    )
+
+    try:
+        resultado = segmentar_clientes_kmeans(df)
+    except ValueError as exc:
+        msg_advertencia(
+            "No fue posible segmentar clientes con K-Means.",
+            causa=str(exc),
+            accion=(
+                "Verifica que existan al menos 3 clientes y que las variables "
+                "numericas requeridas sean validas."
+            ),
+        )
+        return
+
+    _ = resultado["clientes_segmentados"]
+    conteo = resultado["conteo_clusters"]
+    resumen = resultado["resumen_clusters"]
+    tasa_abandono = resultado["tasa_abandono_clusters"]
+    descripciones = resultado["descripciones"]
+
+    _mostrar_metricas_clusters(conteo)
+    _mostrar_grafico_clusters(conteo)
+    _mostrar_resumen_clusters(resumen)
+    _mostrar_tasa_abandono_clusters(tasa_abandono)
+    _mostrar_descripciones_clusters(descripciones)
+
+
+def _mostrar_metricas_clusters(conteo: pd.DataFrame) -> None:
+    """Muestra indicadores de cantidad de clientes por cluster."""
+    st.subheader("Clientes por clúster")
+    columnas = st.columns(3)
+    for indice in range(3):
+        cluster = f"Clúster {indice + 1}"
+        columnas[indice].metric(
+            f"Clientes en {cluster}",
+            _formatear_entero(_total_cluster(conteo, cluster)),
+        )
+
+
+def _mostrar_grafico_clusters(conteo: pd.DataFrame) -> None:
+    """Muestra grafico de distribucion de clientes por cluster."""
+    datos = _completar_conteo_clusters(conteo)
+    fig = px.bar(
+        datos,
+        x="cluster",
+        y="total_clientes",
+        color="cluster",
+        text="total_clientes",
+        color_discrete_map=COLORES_CLUSTER,
+        title="Distribución de clientes por clúster K-Means",
+        labels={"cluster": "Clúster", "total_clientes": "Clientes"},
+    )
+    fig.update_traces(textposition="outside")
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _mostrar_resumen_clusters(resumen: pd.DataFrame) -> None:
+    """Muestra tabla de promedios por cluster."""
+    st.subheader("Promedios por clúster")
+    if resumen.empty:
+        msg_info(
+            "No hay datos suficientes para mostrar promedios por clúster.",
+            accion="Verifica que las variables de segmentación tengan valores válidos.",
+        )
+        return
+
+    columnas = ["cluster"] + [columna for columna in COLUMNAS_SEGMENTACION if columna in resumen.columns]
+    tabla = resumen.loc[:, columnas].copy()
+    for columna in COLUMNAS_SEGMENTACION:
+        if columna in tabla.columns:
+            tabla[columna] = pd.to_numeric(tabla[columna], errors="coerce").round(2)
+    tabla = tabla.rename(columns=ETIQUETAS_COLUMNAS_SEGMENTACION)
+    st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+
+def _mostrar_tasa_abandono_clusters(tasa_abandono: pd.DataFrame) -> None:
+    """Muestra tasa real de abandono observada por cluster."""
+    st.subheader("Tasa real de abandono por clúster")
+    st.markdown(
+        "Esta tasa se calcula después de formar los grupos. `abandono` no se utilizó "
+        "para entrenar K-Means; la comparación es descriptiva y no causal."
+    )
+    if tasa_abandono.empty:
+        msg_info(
+            "No hay datos suficientes para calcular tasa de abandono por clúster.",
+            accion="Verifica que la columna `abandono` tenga valores válidos 0 o 1.",
+        )
+        return
+
+    tabla = tasa_abandono.loc[
+        :,
+        ["cluster", "total_clientes", "clientes_abandonaron", "tasa_abandono"],
+    ].copy()
+    tabla["tasa_abandono"] = pd.to_numeric(
+        tabla["tasa_abandono"],
+        errors="coerce",
+    ).map(_formatear_porcentaje)
+    tabla = tabla.rename(columns=ETIQUETAS_COLUMNAS_SEGMENTACION)
+    st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+
+def _mostrar_descripciones_clusters(descripciones: list[str]) -> None:
+    """Muestra descripciones prudentes generadas por el servicio."""
+    st.subheader("Lectura descriptiva de los clústeres")
+    if not descripciones:
+        msg_info(
+            "No hay descripciones disponibles para los clústeres.",
+            accion="Verifica que el resumen de segmentación tenga datos suficientes.",
+        )
+        return
+
+    for descripcion in descripciones:
+        st.markdown(f"- {descripcion}")
+
+
+def _completar_conteo_clusters(conteo: pd.DataFrame) -> pd.DataFrame:
+    """Asegura presencia visual de los tres clusters iniciales."""
+    filas = []
+    for indice in range(3):
+        cluster = f"Clúster {indice + 1}"
+        filas.append({"cluster": cluster, "total_clientes": _total_cluster(conteo, cluster)})
+    return pd.DataFrame(filas)
+
+
+def _total_cluster(conteo: pd.DataFrame, cluster: str) -> int:
+    """Obtiene el total de clientes de un cluster; devuelve 0 si no existe."""
+    if conteo.empty or "cluster" not in conteo.columns or "total_clientes" not in conteo.columns:
+        return 0
+    fila = conteo.loc[conteo["cluster"] == cluster, "total_clientes"]
+    if fila.empty:
+        return 0
+    return int(fila.iloc[0])
+
+
+def _formatear_entero(valor: float | int) -> str:
+    """Formatea enteros con separador de miles."""
+    return f"{int(valor):,}".replace(",", ".")
+
+
+def _formatear_porcentaje(valor: float | int) -> str:
+    """Formatea porcentajes con dos decimales."""
+    return f"{float(valor):.2f}%"
