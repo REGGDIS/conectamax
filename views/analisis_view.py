@@ -34,6 +34,17 @@ VARIABLES_BOXPLOT = {
     "antiguedad_meses": "Antigüedad en meses",
 }
 
+VARIABLES_CORRELACION = {
+    "antiguedad_meses": "Antigüedad en meses",
+    "monto_mensual": "Monto mensual",
+    "cantidad_servicios": "Cantidad de servicios",
+    "reclamos_ultimos_6_meses": "Reclamos últimos 6 meses",
+    "pagos_atrasados": "Pagos atrasados",
+    "dias_sin_uso": "Días sin uso",
+    "satisfaccion": "Satisfacción",
+    "abandono": "Abandono",
+}
+
 ETIQUETAS_COLUMNAS_SEGMENTACION = {
     "cluster": "Clúster",
     "total_clientes": "Total clientes",
@@ -95,6 +106,8 @@ def mostrar_analisis() -> None:
     _mostrar_comparacion_metricas(df)
     st.divider()
     _mostrar_distribucion_boxplot(df)
+    st.divider()
+    _mostrar_matriz_correlacion(df)
     st.divider()
     _mostrar_conclusiones(resumen_contrato, resumen_ciudad, resumen_plan, df)
     st.divider()
@@ -196,7 +209,10 @@ def _mostrar_distribucion_boxplot(df: pd.DataFrame) -> None:
         msg_advertencia(
             "No fue posible construir el gráfico de caja.",
             causa=str(exc),
-            accion="Verifica que la base de datos contenga la variable seleccionada y la columna `abandono`.",
+            accion=(
+                "Verifica que la base de datos contenga la variable seleccionada "
+                "y la columna `abandono`."
+            ),
         )
         return
 
@@ -246,6 +262,143 @@ def preparar_datos_boxplot(df: pd.DataFrame | None, variable: str) -> pd.DataFra
 def formatear_etiqueta_variable(variable: str) -> str:
     """Devuelve una etiqueta legible para variables del boxplot."""
     return VARIABLES_BOXPLOT.get(variable, variable)
+
+
+def _mostrar_matriz_correlacion(df: pd.DataFrame) -> None:
+    """Muestra matriz de correlacion de Pearson y relaciones con abandono."""
+    st.subheader("Matriz de correlación de Pearson")
+    st.markdown(
+        "Pearson mide la relación lineal entre variables numéricas. El coeficiente "
+        "varía entre -1 y 1: valores cercanos a 1 indican relación positiva, "
+        "valores cercanos a -1 indican relación negativa y valores cercanos a 0 "
+        "indican poca relación lineal. Correlación no implica causalidad; "
+        "`abandono` se interpreta como una variable binaria 0/1 para este análisis "
+        "descriptivo."
+    )
+
+    try:
+        matriz = preparar_matriz_correlacion(df)
+    except ValueError as exc:
+        msg_advertencia(
+            "No fue posible calcular la matriz de correlación.",
+            causa=str(exc),
+            accion=(
+                "Verifica que existan al menos dos variables numéricas válidas "
+                "en la base de datos."
+            ),
+        )
+        return
+
+    matriz_presentacion = _renombrar_matriz_correlacion(matriz).round(2)
+    fig = px.imshow(
+        matriz_presentacion,
+        color_continuous_scale="RdBu_r",
+        zmin=-1,
+        zmax=1,
+        title="Matriz de correlación de Pearson",
+        labels={"x": "Variable", "y": "Variable", "color": "Correlación"},
+        aspect="auto",
+    )
+    fig.update_traces(text=matriz_presentacion.values, texttemplate="%{text:.2f}")
+    fig.update_layout(coloraxis_cmid=0, height=650)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("Matriz de coeficientes Pearson redondeada a 2 decimales.")
+    tabla = matriz_presentacion.reset_index().rename(columns={"index": "Variable"})
+    st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+    _mostrar_correlaciones_abandono(matriz)
+    st.markdown(
+        "La correlación describe asociación lineal y no demuestra causalidad. "
+        "Una correlación baja no descarta relaciones no lineales. Estos resultados "
+        "complementan, pero no reemplazan, el modelo de churn."
+    )
+
+
+def preparar_matriz_correlacion(df: pd.DataFrame | None) -> pd.DataFrame:
+    """Prepara y calcula matriz de correlacion de Pearson."""
+    if df is None:
+        raise ValueError("No se recibieron datos para calcular correlaciones.")
+    if df.empty:
+        raise ValueError("No hay datos disponibles para calcular correlaciones.")
+
+    columnas = [columna for columna in VARIABLES_CORRELACION if columna in df.columns]
+    if len(columnas) < 2:
+        raise ValueError("Se requieren al menos 2 variables disponibles para calcular correlaciones.")
+
+    datos = df.loc[:, columnas].copy(deep=True)
+    columnas_validas = []
+    for columna in columnas:
+        datos[columna] = pd.to_numeric(datos[columna], errors="coerce")
+        if not datos[columna].isna().all():
+            columnas_validas.append(columna)
+
+    if len(columnas_validas) < 2:
+        raise ValueError("Se requieren al menos 2 variables numéricas válidas para calcular correlaciones.")
+
+    return datos.loc[:, columnas_validas].corr(method="pearson")
+
+
+def calcular_correlaciones_abandono(matriz: pd.DataFrame | None) -> pd.DataFrame:
+    """Construye tabla ordenada de correlaciones descriptivas con abandono."""
+    columnas = ["variable", "coeficiente", "direccion"]
+    if matriz is None or matriz.empty or "abandono" not in matriz.columns:
+        return pd.DataFrame(columns=columnas)
+
+    filas = []
+    for variable, coeficiente in matriz["abandono"].drop(labels=["abandono"], errors="ignore").items():
+        if pd.isna(coeficiente):
+            continue
+        filas.append(
+            {
+                "variable": VARIABLES_CORRELACION.get(variable, variable),
+                "coeficiente": float(coeficiente),
+                "direccion": _clasificar_direccion_correlacion(float(coeficiente)),
+                "_orden": abs(float(coeficiente)),
+            }
+        )
+
+    if not filas:
+        return pd.DataFrame(columns=columnas)
+
+    resultado = pd.DataFrame(filas).sort_values("_orden", ascending=False, kind="mergesort")
+    return resultado.loc[:, columnas].reset_index(drop=True)
+
+
+def _mostrar_correlaciones_abandono(matriz: pd.DataFrame) -> None:
+    """Muestra tabla ordenada de correlaciones con abandono."""
+    st.subheader("Correlaciones con abandono")
+    correlaciones = calcular_correlaciones_abandono(matriz)
+    if correlaciones.empty:
+        msg_info(
+            "No hay datos suficientes para calcular correlaciones con abandono.",
+            accion="Verifica que `abandono` y otras variables numéricas tengan valores válidos.",
+        )
+        return
+
+    tabla = correlaciones.copy()
+    tabla["coeficiente"] = tabla["coeficiente"].round(2)
+    tabla = tabla.rename(
+        columns={
+            "variable": "Variable",
+            "coeficiente": "Coeficiente de correlación con abandono",
+            "direccion": "Dirección",
+        }
+    )
+    st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+
+def _renombrar_matriz_correlacion(matriz: pd.DataFrame) -> pd.DataFrame:
+    """Aplica etiquetas legibles a ambos ejes de la matriz."""
+    return matriz.rename(index=VARIABLES_CORRELACION, columns=VARIABLES_CORRELACION)
+
+
+def _clasificar_direccion_correlacion(coeficiente: float) -> str:
+    if coeficiente > 0.10:
+        return "Positiva"
+    if coeficiente < -0.10:
+        return "Negativa"
+    return "Sin relación lineal clara"
 
 
 def _mostrar_conclusiones(
